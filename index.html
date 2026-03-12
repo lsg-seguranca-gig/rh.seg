@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LSG Sky Chefs — Controle de Uniformes e EPIs</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="icon" href="logo lsg.ico" type="image/x-icon">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -761,7 +762,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 // ═══════════════════════════════════════════
 // CONFIG — EDITE AQUI
 // ═══════════════════════════════════════════
-const SP_URL_FIXO = ''; // Cole aqui a URL do SharePoint ex: 'https://empresa.sharepoint.com/sites/ControleEPI'
+const SP_URL_FIXO = 'https://retailinmotion.sharepoint.com/sites/ControleUniformesEPIs'; // Cole aqui a URL do SharePoint ex: 'https://empresa.sharepoint.com/sites/ControleEPI'
 
 const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
                'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -776,53 +777,7 @@ let DB = { itens:[], estoque:[], movimentacoes:[], metas:{} };
 // ═══════════════════════════════════════════
 // DEMO DATA
 // ═══════════════════════════════════════════
-function initDemoData() {
-  if (DB.itens.length) return;
 
-  const ano = new Date().getFullYear();
-  for (let m=1; m<=12; m++) DB.metas[`${ano}-${String(m).padStart(2,'0')}`] = 15000;
-
-  const itensSeg = [
-    {id:'i1',nome:'Capacete de Segurança',cat:'Proteção da Cabeça',unidade:'Unidade',preco:45.90,setor:'Segurança',min:10},
-    {id:'i2',nome:'Luva de Raspa',cat:'Proteção das Mãos',unidade:'Par',preco:12.50,setor:'Segurança',min:20},
-    {id:'i3',nome:'Bota de Segurança',cat:'Proteção dos Pés',unidade:'Par',preco:130.00,setor:'Segurança',min:8},
-    {id:'i4',nome:'Colete Refletivo',cat:'Sinalização',unidade:'Unidade',preco:28.00,setor:'Segurança',min:15},
-    {id:'i5',nome:'Óculos de Proteção',cat:'Proteção Visual',unidade:'Unidade',preco:18.75,setor:'Segurança',min:12},
-    {id:'i6',nome:'Protetor Auricular',cat:'Proteção Auditiva',unidade:'Par',preco:5.20,setor:'Segurança',min:30},
-    {id:'i7',nome:'Máscara PFF2',cat:'Proteção Respiratória',unidade:'Unidade',preco:8.40,setor:'Segurança',min:50},
-  ];
-  const itensRH = [
-    {id:'i8',nome:'Camisa Manga Longa M',cat:'Uniforme Superior',unidade:'Unidade',preco:55.00,setor:'RH',min:10},
-    {id:'i9',nome:'Camisa Manga Longa G',cat:'Uniforme Superior',unidade:'Unidade',preco:55.00,setor:'RH',min:10},
-    {id:'i10',nome:'Calça de Trabalho 42',cat:'Uniforme Inferior',unidade:'Unidade',preco:72.00,setor:'RH',min:8},
-    {id:'i11',nome:'Casaco de Frio',cat:'Proteção Térmica',unidade:'Unidade',preco:95.00,setor:'RH',min:5},
-    {id:'i12',nome:'Sapato de Segurança 42',cat:'Calçado',unidade:'Par',preco:145.00,setor:'RH',min:6},
-    {id:'i13',nome:'Touca Ninja',cat:'Proteção da Cabeça',unidade:'Unidade',preco:15.00,setor:'RH',min:20},
-  ];
-  DB.itens = [...itensSeg, ...itensRH];
-  DB.itens.forEach(it => {
-    DB.estoque.push({itemId:it.id,tipo:'Oficial',qtd:Math.floor(Math.random()*40)+5});
-    DB.estoque.push({itemId:it.id,tipo:'Paralelo',qtd:Math.floor(Math.random()*15)});
-  });
-
-  const nomes = ['João Silva','Maria Santos','Carlos Oliveira','Ana Lima','Pedro Costa'];
-  for (let d=0;d<30;d++) {
-    const dt = new Date(); dt.setDate(dt.getDate()-Math.floor(Math.random()*28));
-    const item = DB.itens[Math.floor(Math.random()*DB.itens.length)];
-    const tipo = Math.random()>.35?'Saída':'Entrada';
-    const est  = Math.random()>.3?'Oficial':'Paralelo';
-    const qtd  = Math.floor(Math.random()*4)+1;
-    DB.movimentacoes.push({
-      id:'m'+d, data:dt.toISOString(),
-      itemId:item.id, itemNome:item.nome,
-      tipo, tipoEst:est, setor:item.setor,
-      qtd, valor:est==='Oficial'&&tipo==='Saída'?qtd*item.preco:0,
-      solicitante:nomes[Math.floor(Math.random()*nomes.length)], obs:''
-    });
-  }
-  DB.movimentacoes.sort((a,b)=>new Date(b.data)-new Date(a.data));
-  salvarLocal();
-}
 
 function salvarLocal() {
   try { localStorage.setItem('lsg_epi_db', JSON.stringify(DB)); } catch(e){}
@@ -852,7 +807,7 @@ async function entrarApp(setor) {
   document.getElementById('sidebar-setor-label').textContent = nomeSetor;
   document.getElementById('sb-user-pill').textContent = '👤 '+nomeSetor;
   document.getElementById('cfg-user').textContent = nomeSetor;
-  document.getElementById('cfg-modo').textContent = APP.spUrl ? 'SharePoint conectado' : 'Local (demo)';
+  document.getElementById('cfg-modo').textContent = 'SharePoint conectado';
   document.getElementById('cfg-sp-url').value = APP.spUrl;
 
   // Filtrar dashboard por setor
@@ -876,10 +831,13 @@ async function entrarApp(setor) {
 
   // Monta grid de metas
   montarMetasGrid();
-  if(APP.spUrl) {
-    await spLoadAll();
-    startAutoSync();
-  }
+  // Sempre carrega do SharePoint — limpa dados locais primeiro
+  DB.itens = [];
+  DB.estoque = [];
+  DB.movimentacoes = [];
+  DB.metas = {};
+  await spLoadAll();
+  startAutoSync();
   popularSelectItem();
   montarMetasGrid();
   navigate('dashboard');
@@ -889,7 +847,7 @@ async function entrarApp(setor) {
 // ═══════════════════════════════════════════
 // ADMIN PASSWORD
 // ═══════════════════════════════════════════
-const ADMIN_SENHA = 'admin@lsg2026'; // ← altere aqui para mudar a senha
+const ADMIN_SENHA = 'admin@lsg2024'; // ← altere aqui para mudar a senha
 
 function toggleAdminForm() {
   const form = document.getElementById('admin-form');
