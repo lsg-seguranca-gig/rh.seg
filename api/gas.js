@@ -1,16 +1,12 @@
 // /api/gas.js
 // Proxy para Google Apps Script (GAS) com suporte a:
-// - Variável de ambiente GAS_ENDPOINT (recomendada) e fallback para GAS_WEBAPP_URL
+// - GAS_ENDPOINT (recomendada) e fallback para GAS_WEBAPP_URL
 // - GET / POST / OPTIONS (CORS)
 // - Follow redirect (302) do GAS
 // - Body text/plain (compatível com doPost)
 // - Pass-through de JSON e cache leve para GET
 
-export const config = {
-  runtime: 'nodejs', // (opcional) você pode remover este bloco; o default já é Node.
-};
-
-// Se quiser restringir CORS ao domínio do seu projeto, troque '*' pelo seu host.
+// Se quiser restringir CORS ao domínio do seu projeto, troque '*' pelo seu domínio Vercel:
 const allowOrigin = '*';
 
 export default async function handler(req, res) {
@@ -24,7 +20,7 @@ export default async function handler(req, res) {
 
   res.setHeader('Access-Control-Allow-Origin', allowOrigin);
 
-  // 🔑 Preferencialmente GAS_ENDPOINT; se não existir, tenta GAS_WEBAPP_URL
+  // Preferencialmente GAS_ENDPOINT; fallback para GAS_WEBAPP_URL
   const GAS =
     (process.env.GAS_ENDPOINT && process.env.GAS_ENDPOINT.trim()) ||
     (process.env.GAS_WEBAPP_URL && process.env.GAS_WEBAPP_URL.trim()) ||
@@ -39,15 +35,14 @@ export default async function handler(req, res) {
 
   try {
     const { method, query } = req;
-    const qs = new URLSearchParams(query);
-    const url = `${GAS}?${qs.toString()}`;
+    const params = new URLSearchParams(query);
+    const url = `${GAS}?${params.toString()}`;
 
     let upstreamResp;
 
     if (method === 'GET') {
       upstreamResp = await fetch(url, { redirect: 'follow' });
     } else if (method === 'POST') {
-      // GAS costuma esperar text/plain no doPost
       const bodyText =
         typeof req.body === 'string' ? req.body : JSON.stringify(req.body ?? {});
       upstreamResp = await fetch(url, {
@@ -62,12 +57,12 @@ export default async function handler(req, res) {
 
     const text = await upstreamResp.text();
 
-    // Normalmente o GAS devolve JSON como texto; tentamos parsear
+    // GAS normalmente envia JSON como texto
     try {
       const json = JSON.parse(text);
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
-      // Cache leve em edge para GET (remova se não quiser)
+      // Cache leve para GET
       if (method === 'GET') {
         res.setHeader('Cache-Control', 's-maxage=15, stale-while-revalidate=60');
       }
@@ -76,7 +71,7 @@ export default async function handler(req, res) {
         .status(upstreamResp.ok ? upstreamResp.status : 502)
         .send(json);
     } catch {
-      // Não era JSON — devolvemos texto bruto para diagnóstico
+      // texto bruto se não for JSON
       res.setHeader('Content-Type', 'text/plain; charset=utf-8');
       return res.status(502).send(text);
     }
