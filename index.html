@@ -16,7 +16,6 @@
     };
   }
   </script>
-  <script src="/_sdk/element_sdk.js" onerror="console.warn('element_sdk não disponível')"></script>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;family=Space+Mono:wght@400;700&amp;display=swap" rel="stylesheet">
   <script>
 tailwind.config = {
@@ -41,8 +40,7 @@ tailwind.config = {
 </script>
   
   
-  <script src="/_sdk/data_sdk.js" type="text/javascript" onerror="console.warn('data_sdk não disponível')"></script>
-   <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css" />
 </head>
  <body class="bg-ink text-light">
   <div class="top-bar">
@@ -1463,9 +1461,29 @@ function showReport(title, html) {
 function printReport() {
   const content = document.getElementById('reportContent').innerHTML;
   const title = document.getElementById('reportTitle').textContent;
-  const win = window.open('', '_blank');
-  win.document.write(`<!DOCTYPE html><html><head><title>${title}</title>  <link rel="stylesheet" href="style.css" />
-</head><body><h1>${title}</h1>${content}
+
+  const w = window.open('', '_blank');
+  var doc = ''
+    + '<!DOCTYPE html><html><head><meta charset="utf-8">'
+    + '<title>' + title + '</title>'
+    + '<link rel="stylesheet" href="style.css" />'
+    + '<style>'
+      + 'body{font-family:Arial,sans-serif;padding:20px;color:#333}'
+      + 'table{width:100%;border-collapse:collapse;margin:10px 0}'
+      + 'th,td{border:1px solid #ddd;padding:8px;text-align:left;font-size:12px}'
+      + 'th{background:#f5f5f5;font-weight:bold}'
+      + 'h1{font-size:18px;margin-bottom:5px}'
+      + '.badge{padding:2px 8px;border-radius:12px;font-size:11px}'
+      + '@media print{body{padding:0}}'
+    + '</style>'
+    + '</head><body><h1>' + title + '</h1>' + content + '</body></html>';
+
+  w.document.open();
+  w.document.write(doc);
+  w.document.close();
+  w.print();
+}
+
 <!-- MODAL: Senha -->
 <div id="modalLogin" class="fixed inset-0 z-50 hidden items-center justify-center modal-overlay" style="display:none;">
   <div class="bg-surface rounded-xl w-full max-w-sm mx-4 border border-panel p-5">
