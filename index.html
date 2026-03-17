@@ -8,8 +8,15 @@
   <!-- Mantém seu layout intacto -->
   <link rel="stylesheet" href="/style.css">
 
-  <!-- CSS mínimo apenas para o modal (isolado, sem impactar top-bar/sidebar/cards) -->
+  <!-- CSS mínimo para o modal + workaround: @import do style.css -->
   <style>
+    /* =========================================
+       WORKAROUND: força o carregamento do style.css
+       Remova esta linha quando o <link> voltar a funcionar
+       ========================================= */
+    @import url("/style.css?v=20260317");
+
+    /* CSS mínimo apenas para o modal (isolado, sem impactar top-bar/sidebar/cards) */
     .modal {
       position: fixed;
       inset: 0;
@@ -58,7 +65,7 @@
   </style>
 </head>
 <body>
-  <div class="app">
+  <div id="app" class="app"><!-- id="app" alinha com o seu style.css -->
     <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-header">
@@ -174,9 +181,7 @@
                       <th>Status</th>
                     </tr>
                   </thead>
-                  <tbody>
-                    <!-- Populado via JS -->
-                  </tbody>
+                  <tbody></tbody>
                 </table>
                 <div id="semResultados" class="muted hidden" style="padding:12px;">Nenhum registro encontrado.</div>
               </div>
@@ -184,7 +189,7 @@
           </div>
         </section>
 
-        <!-- REGISTROS (lista completa reutiliza a mesma tabela)-->
+        <!-- REGISTROS -->
         <section id="registrosView" class="view">
           <div class="card">
             <div class="card-header">
@@ -221,7 +226,7 @@
 
   <!-- LOGIN MODAL (senha por setor) -->
   <div class="modal is-open" id="loginModal" aria-hidden="false" role="dialog" aria-modal="true">
-    <div class="modal-backdrop"></div>
+    <div class="modal-backdrop" id="loginScreen"></div><!-- id="loginScreen" para alinhar com seu CSS -->
     <div class="modal-content" role="document">
       <div class="modal-header">
         <h2>Entrar por Setor</h2>
@@ -259,7 +264,6 @@
       // =============================
       const $ = (sel, root = document) => root.querySelector(sel);
       const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
-      const sleep = (ms) => new Promise(r => setTimeout(r, ms));
       const fold = (v) => (v ?? "")
         .toString()
         .normalize("NFD")
@@ -267,27 +271,18 @@
         .toLowerCase()
         .trim();
       const same = (a, b) => fold(a) === fold(b);
-
-      function debounce(fn, delay = 250) {
-        let t;
-        return (...args) => {
-          clearTimeout(t);
-          t = setTimeout(() => fn(...args), delay);
-        };
-      }
+      function debounce(fn, delay = 250) { let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), delay); }; }
 
       // =============================
       // API (Vercel /api/gas)
       // =============================
       const API_BASE = "/api/gas";
       const API_TIMEOUT = 20000; // 20s
-
       const API_ROUTES = {
         login: (setor, senha) => `${API_BASE}?action=login&setor=${encodeURIComponent(setor)}&senha=${encodeURIComponent(senha)}`,
         listar: (setor, token) => `${API_BASE}?action=listar&setor=${encodeURIComponent(setor)}&token=${encodeURIComponent(token || "")}`,
         ping: (token) => `${API_BASE}?action=ping&token=${encodeURIComponent(token || "")}`,
       };
-
       async function apiGet(url) {
         const ctrl = new AbortController();
         const to = setTimeout(() => ctrl.abort(), API_TIMEOUT);
@@ -300,17 +295,10 @@
           clearTimeout(to);
         }
       }
-
       const Api = {
-        async login(setor, senha) {
-          return apiGet(API_ROUTES.login(setor, senha));
-        },
-        async listar(setor, token) {
-          return apiGet(API_ROUTES.listar(setor, token));
-        },
-        async ping(token) {
-          return apiGet(API_ROUTES.ping(token));
-        }
+        login: (s, p) => apiGet(API_ROUTES.login(s, p)),
+        listar: (s, t) => apiGet(API_ROUTES.listar(s, t)),
+        ping: (t) => apiGet(API_ROUTES.ping(t)),
       };
 
       // =============================
@@ -321,18 +309,10 @@
         registros: [],         // dados brutos do backend
         filtrados: [],         // registros filtrados por busca
       };
-
       const STORAGE_KEY = "uepi.auth";
-
-      function loadAuth() {
-        try { return JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch { return null; }
-      }
-      function saveAuth(auth) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(auth));
-      }
-      function clearAuth() {
-        localStorage.removeItem(STORAGE_KEY);
-      }
+      const loadAuth = () => { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch { return null; } };
+      const saveAuth = (auth) => localStorage.setItem(STORAGE_KEY, JSON.stringify(auth));
+      const clearAuth = () => localStorage.removeItem(STORAGE_KEY);
 
       // =============================
       // UI: navegação básica
@@ -343,18 +323,8 @@
         $$(".sidebar-item").forEach(a => a.classList.remove("active"));
         $(`.sidebar-item[data-view="${id}"]`)?.classList.add("active");
       }
-
-      $("#btnToggleSidebar")?.addEventListener("click", () => {
-        $("#sidebar")?.classList.toggle("collapsed");
-      });
-
-      $$(".sidebar-item[data-view]").forEach(a => {
-        a.addEventListener("click", (e) => {
-          e.preventDefault();
-          const id = a.getAttribute("data-view");
-          if (id) setActiveView(id);
-        });
-      });
+      $("#btnToggleSidebar")?.addEventListener("click", () => { $("#sidebar")?.classList.toggle("collapsed"); });
+      $$(".sidebar-item[data-view]").forEach(a => a.addEventListener("click", (e) => { e.preventDefault(); const id = a.getAttribute("data-view"); if (id) setActiveView(id); }));
 
       // =============================
       // UI: login modal
@@ -376,43 +346,29 @@
         loginModal.setAttribute("aria-hidden", "false");
         loginSetor?.focus();
       }
-
       function closeLoginModal() {
         loginModal.classList.remove("is-open");
         loginModal.setAttribute("aria-hidden", "true");
       }
-
       btnLoginCancel?.addEventListener("click", () => {
-        // Mantém bloqueado até logar, mas permite limpar o formulário
         loginSetor.value = (localStorage.getItem("uepi.lastSetor") || "Segurança");
         loginSenha.value = "";
         loginFeedback.textContent = "";
       });
-
       btnLoginSubmit?.addEventListener("click", async () => {
         const setor = (loginSetor.value || "").trim();
         const senha = (loginSenha.value || "").trim();
-
-        if (!setor || !senha) {
-          loginFeedback.textContent = "Informe setor e senha.";
-          return;
-        }
-
+        if (!setor || !senha) { loginFeedback.textContent = "Informe setor e senha."; return; }
         btnLoginSubmit.disabled = true;
         loginSpinner.classList.remove("hidden");
         loginFeedback.textContent = "";
-
         try {
           const resp = await Api.login(setor, senha);
-          if (!resp || !resp.ok) {
-            throw new Error(resp?.message || "Setor/senha inválidos.");
-          }
+          if (!resp || !resp.ok) throw new Error(resp?.message || "Setor/senha inválidos.");
           const token = resp.token || "";
           state.auth = { setor: resp.setor || setor, token, ts: Date.now() };
           saveAuth(state.auth);
-          if (lembrarSetor.checked) {
-            localStorage.setItem("uepi.lastSetor", state.auth.setor);
-          }
+          if (lembrarSetor.checked) localStorage.setItem("uepi.lastSetor", state.auth.setor);
           updateAuthBadges(true);
           closeLoginModal();
           await carregarRegistros();
@@ -432,18 +388,12 @@
       const badgeSetorInline = $("#badgeSetorInline");
       const badgeOnline = $("#badgeOnline");
       const badgeOffline = $("#badgeOffline");
-
       function updateAuthBadges(online) {
         const setor = state.auth?.setor || "—";
         badgeSetor.textContent = `Setor: ${setor}`;
         badgeSetorInline.textContent = setor;
-        if (online === true) {
-          badgeOnline.classList.remove("hidden");
-          badgeOffline.classList.add("hidden");
-        } else if (online === false) {
-          badgeOnline.classList.add("hidden");
-          badgeOffline.classList.remove("hidden");
-        }
+        if (online === true) { badgeOnline.classList.remove("hidden"); badgeOffline.classList.add("hidden"); }
+        else if (online === false) { badgeOnline.classList.add("hidden"); badgeOffline.classList.remove("hidden"); }
       }
 
       // =============================
@@ -452,7 +402,6 @@
       async function carregarRegistros() {
         if (!state.auth?.setor) return;
         updateAuthBadges(true);
-
         try {
           const { setor, token } = state.auth;
           const resp = await Api.listar(setor, token);
@@ -475,28 +424,16 @@
       const kpiEpis = $("#kpiEpis");
       const kpiPendencias = $("#kpiPendencias");
       const kpiColaboradores = $("#kpiColaboradores");
-
       function renderKPIs() {
         const data = state.registros;
-
-        // Define heurísticas de campos (flexível com nomes)
-        const get = (o, ...keys) => {
-          for (const k of keys) if (o && o[k] != null) return o[k];
-          return undefined;
-        };
-
+        const get = (o, ...keys) => { for (const k of keys) if (o && o[k] != null) return o[k]; return undefined; };
         const tipo = (r) => fold(get(r, "tipo", "Tipo"));
         const status = (r) => fold(get(r, "status", "Status"));
         const colab = (r) => get(r, "colaborador", "Colaborador", "funcionario", "Funcionário");
-        const setor = (r) => get(r, "setor", "Setor");
-
         const uniformesEntregues = data.filter(r => tipo(r) === "uniforme" && status(r) === "entregue").length;
         const episEntregues = data.filter(r => tipo(r) === "epi" && status(r) === "entregue").length;
         const pendencias = data.filter(r => ["pendente","em aberto","aguardando"].includes(status(r))).length;
-
-        // Colaboradores distintos do setor
         const distinctColabs = new Set(data.map(r => fold(colab(r) || ""))).size;
-
         kpiUniformes.textContent = uniformesEntregues;
         kpiEpis.textContent = episEntregues;
         kpiPendencias.textContent = pendencias;
@@ -531,41 +468,24 @@
       function aplicarFiltro() {
         const q1 = inputFiltro?.value || "";
         const q2 = inputFiltro2?.value || "";
-
         const base = state.registros;
         const f1 = base.filter(r => matchFiltro(r, q1));
         const f2 = base.filter(r => matchFiltro(r, q2));
-
         state.filtrados = f1;
-
         renderTabela(tabela1, f1, semResultados1);
         renderTabela(tabela2, f2, semResultados2);
       }
-
       inputFiltro?.addEventListener("input", debounce(aplicarFiltro, 200));
       inputFiltro2?.addEventListener("input", debounce(aplicarFiltro, 200));
 
       function renderTabela(tableEl, data, emptyEl) {
         const tbody = $("tbody", tableEl);
         tbody.innerHTML = "";
-
-        if (!data || data.length === 0) {
-          emptyEl.classList.remove("hidden");
-          return;
-        } else {
-          emptyEl.classList.add("hidden");
-        }
-
-        // Campos resilientes a diferentes chaves
-        const get = (o, ...keys) => {
-          for (const k of keys) if (o && o[k] != null) return o[k];
-          return "";
-        };
-
+        if (!data || data.length === 0) { emptyEl.classList.remove("hidden"); return; } else { emptyEl.classList.add("hidden"); }
+        const get = (o, ...keys) => { for (const k of keys) if (o && o[k] != null) return o[k]; return ""; };
         const rows = document.createDocumentFragment();
         for (const r of data) {
           const tr = document.createElement("tr");
-
           const dt = get(r, "data", "Data", "timestamp", "Timestamp");
           const mat = get(r, "matricula", "Matrícula", "Matricula", "id", "ID");
           const col = get(r, "colaborador", "Colaborador", "funcionario", "Funcionário", "Funcionario", "nome", "Nome");
@@ -574,7 +494,6 @@
           const item = get(r, "item", "Item", "descricao", "Descrição", "Descricao");
           const qtd = get(r, "quantidade", "Quantidade", "Qtd", "qtd", "qte") || 1;
           const st = get(r, "status", "Status");
-
           tr.innerHTML = `
             <td>${escapeHtml(dt)}</td>
             <td><span class="badge badge-light">${escapeHtml(mat)}</span></td>
@@ -583,9 +502,7 @@
             <td>${escapeHtml(tipo)}</td>
             <td>${escapeHtml(item)}</td>
             <td>${escapeHtml(qtd)}</td>
-            <td>
-              ${renderStatusBadge(st)}
-            </td>
+            <td>${renderStatusBadge(st)}</td>
           `;
           rows.appendChild(tr);
         }
@@ -614,7 +531,7 @@
       // =============================
       // Logout
       // =============================
-      $("#btnLogout")?.addEventListener("click", async () => {
+      $("#btnLogout")?.addEventListener("click", () => {
         clearAuth();
         state.auth = null;
         openLoginModal();
@@ -624,11 +541,9 @@
       // Bootstrap
       // =============================
       async function init() {
-        // Recupera setor lembrado
         const lastSetor = localStorage.getItem("uepi.lastSetor");
-        if (lastSetor && !loginSetor.value) loginSetor.value = lastSetor;
+        if (lastSetor && !$("#loginSetor").value) $("#loginSetor").value = lastSetor;
 
-        // Tenta restaurar sessão
         const saved = loadAuth();
         if (saved?.setor && saved?.token) {
           try {
@@ -640,17 +555,12 @@
               await carregarRegistros();
               return;
             }
-          } catch {
-            // segue para login
-          }
+          } catch {}
         }
-        // Exibe modal de login
         openLoginModal();
       }
 
-      // Inicia app
       init();
-
     })();
   </script>
 </body>
