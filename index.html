@@ -786,23 +786,107 @@ async function loadAllData() {
   showLoading('Conectando ao banco de dados...');
   try {
     const result = await apiLoadAll();
-    const todosItens   = (result.Itens        ||[]).map(normalizeItem);
-    allEstoque         = (result.Estoque       ||[]).map(normalizeEstoque);
-    allMovimentacoes   = (result.Movimentacoes ||[]).map(normalizeMov);
-    // Metas: SEM filtro de setor — compartilhadas por todos
-    allMetas           = (result.MetasMensais  ||[]).map(normalizeMeta);
 
-    allItensCompleto   = todosItens; // guarda todos para relatórios e metas
+    // ── Diagnóstico: loga as chaves retornadas pelo GAS ──────────────────
+    console.log('[loadAllData] Chaves retornadas pelo GAS:', Object.keys(result));
+    Object.keys(result).forEach(k => console.log(`  → ${k}: ${(result[k]||[]).length} registros`));
+
+    // ── Normaliza nomes de abas com tolerância a variações ───────────────
+    // Tenta vários nomes possíveis para cada aba
+    const rawItens   = result.Itens        || result.itens        || result.Items        || result.items        || [];
+    const rawEstoque = result.Estoque      || result.estoque      || result.Stock        || result.stock        || [];
+    const rawMovs    = result.Movimentacoes|| result.movimentacoes|| result.Movimentações|| result.Movimentacoes|| result.Movs || [];
+    const rawMetas   = result.MetasMensais || result.metasMensais || result.Metas        || result.metas        || [];
+
+    console.log('[loadAllData] rawItens:', rawItens.length, '| rawEstoque:', rawEstoque.length, '| rawMovs:', rawMovs.length, '| rawMetas:', rawMetas.length);
+
+    // ── Quando só existe aba Estoque (sem aba Itens separada) ────────────
+    // Nesse caso cada linha do Estoque já contém todos os campos do item
+    // (Title/Nome, Setor, Categoria, Unidade, PrecoUnitario, CA, Min, Ativo…)
+    // Construímos allItens sinteticamente a partir do Estoque.
+    let todosItens = rawItens.map(normalizeItem);
+
+    if (todosItens.length === 0 && rawEstoque.length > 0) {
+      console.log('[loadAllData] Aba Itens vazia — construindo itens a partir do Estoque');
+      // Deduplica por Id ou pelo nome (ItemId no estoque = nome do item)
+      const seen = new Set();
+      todosItens = rawEstoque
+        .map(e => {
+          const id   = String(e.Id   || e.id   || '').trim();
+          const nome = String(e.ItemId|| e.Nome || e.Title || e.title || e.name || '').trim();
+          const setor= String(e.Setor || e.setor|| '').trim();
+          if (!id || seen.has(id)) return null;
+          seen.add(id);
+          return normalizeItem({
+            Id:            id,
+            Title:         nome || id,
+            Setor:         setor,
+            Categoria:     e.Categoria  || e.categoria  || e.Category || '',
+            Unidade:       e.Unidade    || e.unidade    || 'UN',
+            PrecoUnitario: e.PrecoUnitario|| e.Preco    || e.preco    || 0,
+            CA:            e.CA         || '',
+            TipoEst:       e.TipoEstoque|| e.TipoEst   || 'Geral',
+            Min:           e.Min        || e.min        || 0,
+            Ativo:         e.Ativo      != null ? e.Ativo : true,
+          });
+        })
+        .filter(Boolean);
+      console.log('[loadAllData] itens sintéticos gerados:', todosItens.length);
+    }
+
+    allEstoque       = rawEstoque.map(normalizeEstoque);
+    allMovimentacoes = rawMovs.map(normalizeMov);
+    allMetas         = rawMetas.map(normalizeMeta);
+    allItensCompleto = todosItens;
 
     const setorNorm = (userSetor||'').trim();
-    // Itens: admin vê tudo; cada setor vê só os seus
     allItens = (setorNorm==='admin')
       ? todosItens
-      : todosItens.filter(i=>i.Setor.trim().toLowerCase()===setorNorm.toLowerCase());
+      : todosItens.filter(i => i.Setor.trim().toLowerCase() === setorNorm.toLowerCase());
+
+    console.log('[loadAllData] allItens (filtrado):', allItens.length, '| setor:', setorNorm);
+
+    // ── Se ainda zerado, tenta filtrar estoque pelo campo Setor diretamente
+    if (allItens.length === 0 && allEstoque.length > 0 && setorNorm !== 'admin') {
+      console.warn('[loadAllData] allItens ainda vazio — filtrando Estoque por Setor diretamente');
+      const estoqueDoSetor = allEstoque.filter(e =>
+        (String(e.Setor||e.setor||'').trim().toLowerCase()) === setorNorm.toLowerCase()
+      );
+      const seen2 = new Set();
+      allItens = estoqueDoSetor
+        .map(e => {
+          const id = String(e.Id||e.id||'').trim();
+          if (!id || seen2.has(id)) return null;
+          seen2.add(id);
+          return normalizeItem({
+            Id: id,
+            Title: String(e.ItemId||e.Nome||e.Title||e.name||id).trim(),
+            Setor: String(e.Setor||e.setor||'').trim(),
+            Categoria: e.Categoria||'',
+            Unidade: e.Unidade||'UN',
+            PrecoUnitario: e.PrecoUnitario||e.Preco||0,
+            CA: e.CA||'',
+            TipoEst: e.TipoEstoque||'Geral',
+            Min: e.Min||0,
+            Ativo: true,
+          });
+        })
+        .filter(Boolean);
+      console.log('[loadAllData] allItens após fallback de estoque:', allItens.length);
+    }
+
+    // Salva resumo do resultado para diagnóstico no Dashboard
+    window._gasDebug = {
+      chaves: Object.keys(result),
+      contagens: Object.fromEntries(Object.entries(result).map(([k,v])=>[k, Array.isArray(v)?v.length:typeof v])),
+      primeiroEstoque: (allEstoque[0]||null),
+      primeiroItem: (allItens[0]||null),
+    };
 
     hideLoading();
     navigateTo('dashboard');
   } catch(err) {
+    console.error('[loadAllData] ERRO:', err);
     hideLoading();
     showToast('Erro ao carregar dados. Verifique a conexão.','error');
     navigateTo('dashboard');
@@ -816,6 +900,25 @@ function loadDashboard() {
 
   const activeItens = allItens.filter(i=>i.Ativo!==false);
   document.getElementById('dashTotalItens').textContent = activeItens.length;
+
+  // ── Card de diagnóstico (aparece só quando itens=0 para ajudar debug) ──
+  const existingDbg = document.getElementById('debugCard');
+  if (existingDbg) existingDbg.remove();
+  if (activeItens.length === 0 && window._gasDebug) {
+    const dbg = window._gasDebug;
+    const card = document.createElement('div');
+    card.id = 'debugCard';
+    card.className = 'stat-card rounded-xl p-4 border border-warn/40';
+    card.innerHTML = `
+      <p class="text-xs font-bold text-warn mb-2">🔍 Diagnóstico — Dados do GAS (visível enquanto itens=0)</p>
+      <p class="text-xs text-light/60 mb-1"><b>Abas retornadas:</b> ${dbg.chaves.join(', ')||'(nenhuma)'}</p>
+      <p class="text-xs text-light/60 mb-1"><b>Contagens:</b> ${JSON.stringify(dbg.contagens)}</p>
+      <p class="text-xs text-light/60 mb-1"><b>1º Estoque:</b> <code>${JSON.stringify(dbg.primeiroEstoque)}</code></p>
+      <p class="text-xs text-light/60 mb-1"><b>1º Item:</b> <code>${JSON.stringify(dbg.primeiroItem)}</code></p>
+      <p class="text-xs text-light/40 mt-2">Verifique no Console (F12) os logs <code>[loadAllData]</code> para mais detalhes.</p>`;
+    const dashSection = document.getElementById('page-dashboard');
+    if (dashSection) dashSection.prepend(card);
+  }
 
   let lowStockCount=0; const alerts=[];
   activeItens.forEach(item=>{
@@ -891,11 +994,19 @@ function loadDashboard() {
 async function loadItens() {
   try {
     const result    = await apiLoadAll();
-    const todosItens= (result.Itens   ||[]).map(normalizeItem);
-    allEstoque      = (result.Estoque ||[]).map(normalizeEstoque);
+    allEstoque      = (result.Estoque||result.estoque||[]).map(normalizeEstoque);
+    let todosItens  = (result.Itens||result.itens||[]).map(normalizeItem);
     const setorNorm = (userSetor||'').trim();
+    // Fallback: sintetiza itens a partir do Estoque se aba Itens estiver vazia
+    if (!todosItens.length && allEstoque.length) {
+      const seen=new Set();
+      todosItens=allEstoque.map(e=>{
+        const id=String(e.Id||'').trim(); if(!id||seen.has(id)) return null; seen.add(id);
+        return normalizeItem({Id:id,Title:String(e.ItemId||id).trim(),Setor:String(e.Setor||'').trim(),Categoria:e.Categoria||'',Unidade:e.Unidade||'UN',PrecoUnitario:e.PrecoUnitario||0,CA:e.CA||'',TipoEst:e.TipoEstoque||'Geral',Min:e.Min||0,Ativo:true});
+      }).filter(Boolean);
+    }
     allItens = setorNorm==='admin'?todosItens:todosItens.filter(i=>i.Setor.trim().toLowerCase()===setorNorm.toLowerCase());
-  } catch {}
+  } catch(e){ console.error('loadItens:',e); }
   renderItens();
 }
 
@@ -998,9 +1109,17 @@ async function saveItem(e) {
 async function loadEstoque() {
   try {
     const result    = await apiLoadAll();
-    allEstoque      = (result.Estoque ||[]).map(normalizeEstoque);
-    const todosItens= (result.Itens   ||[]).map(normalizeItem);
+    allEstoque      = (result.Estoque||result.estoque||[]).map(normalizeEstoque);
+    let todosItens  = (result.Itens||result.itens||[]).map(normalizeItem);
     const setorNorm = (userSetor||'').trim();
+    // Fallback: sintetiza itens a partir do Estoque se aba Itens estiver vazia
+    if (!todosItens.length && allEstoque.length) {
+      const seen=new Set();
+      todosItens=allEstoque.map(e=>{
+        const id=String(e.Id||'').trim(); if(!id||seen.has(id)) return null; seen.add(id);
+        return normalizeItem({Id:id,Title:String(e.ItemId||id).trim(),Setor:String(e.Setor||'').trim(),Categoria:e.Categoria||'',Unidade:e.Unidade||'UN',PrecoUnitario:e.PrecoUnitario||0,CA:e.CA||'',TipoEst:e.TipoEstoque||'Geral',Min:e.Min||0,Ativo:true});
+      }).filter(Boolean);
+    }
     allItens = setorNorm==='admin'?todosItens:todosItens.filter(i=>i.Setor.trim().toLowerCase()===setorNorm.toLowerCase());
   } catch(err){ console.error('loadEstoque:',err); }
   renderEstoque();
@@ -1081,13 +1200,21 @@ async function saveInventario(){
 // ====================== MOVIMENTAÇÕES ======================
 async function loadMovimentacoes(){
   try {
-    const result    = await apiLoadAll();
-    const todosItens= (result.Itens        ||[]).map(normalizeItem);
-    allMovimentacoes= (result.Movimentacoes||[]).map(normalizeMov);
-    allEstoque      = (result.Estoque      ||[]).map(normalizeEstoque);
-    const setorNorm = (userSetor||'').trim();
+    const result     = await apiLoadAll();
+    allMovimentacoes = (result.Movimentacoes||result.movimentacoes||[]).map(normalizeMov);
+    allEstoque       = (result.Estoque||result.estoque||[]).map(normalizeEstoque);
+    let todosItens   = (result.Itens||result.itens||[]).map(normalizeItem);
+    const setorNorm  = (userSetor||'').trim();
+    // Fallback: sintetiza itens a partir do Estoque se aba Itens estiver vazia
+    if (!todosItens.length && allEstoque.length) {
+      const seen=new Set();
+      todosItens=allEstoque.map(e=>{
+        const id=String(e.Id||'').trim(); if(!id||seen.has(id)) return null; seen.add(id);
+        return normalizeItem({Id:id,Title:String(e.ItemId||id).trim(),Setor:String(e.Setor||'').trim(),Categoria:e.Categoria||'',Unidade:e.Unidade||'UN',PrecoUnitario:e.PrecoUnitario||0,CA:e.CA||'',TipoEst:e.TipoEstoque||'Geral',Min:e.Min||0,Ativo:true});
+      }).filter(Boolean);
+    }
     allItens = setorNorm==='admin'?todosItens:todosItens.filter(i=>i.Setor.trim().toLowerCase()===setorNorm.toLowerCase());
-  } catch {}
+  } catch(e){ console.error('loadMovimentacoes:',e); }
   renderMovimentacoes();
 }
 
