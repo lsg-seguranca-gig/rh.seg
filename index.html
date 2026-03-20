@@ -571,8 +571,12 @@
 const API_URL = 'api/gas';
 
 // ====================== STATE ======================
-let allItens = [], allEstoque = [], allMovimentacoes = [], allMetas = [];
-let allItensCompleto = []; // todos os itens sem filtro de setor
+// allEstoque = lista de EPIs (vem da aba Estoque, campo Nome = nome do EPI)
+// allMovimentacoes = movimentações (EpiId, EpiNome, Setor...)
+// allMetas = metas mensais compartilhadas
+let allEstoque = [], allMovimentacoes = [], allMetas = [];
+// allItens é mantido como alias de allEstoque para compatibilidade com funções existentes
+let allItens = [];
 let currentPage = 'dashboard';
 let userSetor = null;
 
@@ -662,8 +666,8 @@ function logout() {
   document.getElementById('mainApp').style.display = 'none';
   const mh = document.getElementById('mobileHeader');
   if (mh) mh.style.display = 'none';
-  allItens = []; allEstoque = []; allMovimentacoes = []; allMetas = [];
-  allItensCompleto = [];
+  allEstoque = []; allMovimentacoes = []; allMetas = [];
+  allItens = []; // alias
   currentPage = 'dashboard';
   lucide.createIcons();
 }
@@ -729,23 +733,35 @@ function getMonthLabel(key)  { if(!key) return '-'; const [y,m]=key.split('-'); 
 
 // ====================== NORMALIZERS ======================
 function normalizeItem(obj) {
-  const o={};
-  for(const[k,v] of Object.entries(obj)) o[k]=(v==null)?'':(typeof v==='string'?v.trim():v);
-  o.Id=String(o.Id||'').trim(); o.Setor=String(o.Setor||'').trim();
-  o.Ativo=!(o.Ativo===false||String(o.Ativo).toLowerCase()==='false');
-  return o;
+  // Na nova estrutura não há aba Itens separada — usa normalizeEstoque
+  return normalizeEstoque(obj);
 }
 function normalizeEstoque(obj) {
   const o={};
   for(const[k,v] of Object.entries(obj)) o[k]=(v==null)?'':(typeof v==='string'?v.trim():v);
-  o.Id=String(o.Id||'').trim(); o.ItemId=String(o.ItemId||'').trim();
-  o.Quantidade=parseFloat(o.Quantidade)||0; return o;
+  o.Id         = String(o.Id   || '').trim();
+  o.Nome       = String(o.Nome || o.ItemId || o.Title || '').trim(); // compatibilidade
+  o.Setor      = String(o.Setor|| '').trim();
+  o.Categoria  = String(o.Categoria || '').trim();
+  o.Quantidade = parseFloat(o.Quantidade) || 0;
+  o.Ativo      = !(o.Ativo === false || String(o.Ativo).toLowerCase() === 'false');
+  // alias Title para compatibilidade com funções que usam item.Title
+  if (!o.Title) o.Title = o.Nome;
+  return o;
 }
 function normalizeMov(obj) {
   const o={};
   for(const[k,v] of Object.entries(obj)) o[k]=(v==null)?'':(typeof v==='string'?v.trim():v);
-  o.Id=String(o.Id||'').trim(); o.ItemId=String(o.ItemId||'').trim();
-  o.Setor=String(o.Setor||'').trim(); o.Valor=parseFloat(o.Valor)||0; return o;
+  o.Id      = String(o.Id    || '').trim();
+  o.Setor   = String(o.Setor || '').trim();
+  o.Valor   = parseFloat(o.Valor) || 0;
+  o.Quantidade = parseFloat(o.Quantidade) || 0;
+  // Normaliza EpiId/EpiNome ↔ ItemId/ItemNome para compatibilidade
+  o.EpiId   = String(o.EpiId  || o.ItemId  || '').trim();
+  o.EpiNome = String(o.EpiNome|| o.ItemNome|| '').trim();
+  o.ItemId  = o.EpiId;   // alias retrocompatível
+  o.ItemNome= o.EpiNome; // alias retrocompatível
+  return o;
 }
 function normalizeMeta(obj) {
   const o={};
@@ -756,8 +772,10 @@ function normalizeMeta(obj) {
 
 // ====================== API HELPERS ======================
 async function gasGet(op, extra={}) {
-  const params=new URLSearchParams({op,...extra});
-  const res=await fetch(`${API_URL}?${params.toString()}`,{redirect:'follow'});
+  // Sempre envia o setor para o GAS poder filtrar corretamente
+  const setor = userSetor || 'admin';
+  const params = new URLSearchParams({ op, setor, ...extra });
+  const res = await fetch(`${API_URL}?${params.toString()}`, { redirect: 'follow' });
   return JSON.parse(await res.text());
 }
 async function gasPost(op, body={}) {
@@ -768,8 +786,26 @@ async function gasPost(op, body={}) {
   return JSON.parse(await res.text());
 }
 async function apiLoadAll() {
-  try { return await gasGet('listAll'); }
-  catch(err) { console.error('apiLoadAll:', err); showToast('Erro na comunicação com o servidor','error'); throw err; }
+  try {
+    const result = await gasGet('listAll');
+    // GAS pode retornar {ok:false, error:"..."} em vez dos dados
+    if (result && result.ok === false) {
+      const msg = result.error || result.message || 'Erro desconhecido no GAS';
+      console.error('[apiLoadAll] GAS retornou erro:', msg);
+      showToast('Erro no servidor: ' + msg, 'error');
+      throw new Error(msg);
+    }
+    // Se o GAS retornou {ok:true, Estoque:[...], ...} — normaliza removendo o "ok"
+    if (result && result.ok === true) {
+      const { ok, ...dados } = result;
+      return dados;
+    }
+    return result;
+  } catch(err) {
+    console.error('[apiLoadAll] erro:', err);
+    showToast('Erro na comunicação com o servidor', 'error');
+    throw err;
+  }
 }
 async function apiPost(op, body) {
   try {
@@ -779,7 +815,7 @@ async function apiPost(op, body) {
   } catch(err) { console.error('apiPost:',err); showToast('Erro ao salvar dados','error'); throw err; }
 }
 
-function getEstoqueNome(e) { return e&&e.ItemId?String(e.ItemId).trim():'-'; }
+function getEstoqueNome(e) { return e ? (String(e.Nome||e.ItemId||e.Title||'').trim()||'-') : '-'; }
 
 // ====================== DATA LOADING ======================
 async function loadAllData() {
@@ -787,101 +823,17 @@ async function loadAllData() {
   try {
     const result = await apiLoadAll();
 
-    // ── Diagnóstico: loga as chaves retornadas pelo GAS ──────────────────
-    console.log('[loadAllData] Chaves retornadas pelo GAS:', Object.keys(result));
-    Object.keys(result).forEach(k => console.log(`  → ${k}: ${(result[k]||[]).length} registros`));
+    // Estrutura nova: Estoque é a fonte principal de EPIs/Uniformes
+    // Não existe mais aba Itens separada
+    allEstoque       = (result.Estoque       || []).map(normalizeEstoque);
+    allMovimentacoes = (result.Movimentacoes || []).map(normalizeMov);
+    allMetas         = (result.MetasMensais  || []).map(normalizeMeta);
+    // allItens = alias de allEstoque (compatibilidade com código existente)
+    allItens         = allEstoque;
 
-    // ── Normaliza nomes de abas com tolerância a variações ───────────────
-    // Tenta vários nomes possíveis para cada aba
-    const rawItens   = result.Itens        || result.itens        || result.Items        || result.items        || [];
-    const rawEstoque = result.Estoque      || result.estoque      || result.Stock        || result.stock        || [];
-    const rawMovs    = result.Movimentacoes|| result.movimentacoes|| result.Movimentações|| result.Movimentacoes|| result.Movs || [];
-    const rawMetas   = result.MetasMensais || result.metasMensais || result.Metas        || result.metas        || [];
-
-    console.log('[loadAllData] rawItens:', rawItens.length, '| rawEstoque:', rawEstoque.length, '| rawMovs:', rawMovs.length, '| rawMetas:', rawMetas.length);
-
-    // ── Quando só existe aba Estoque (sem aba Itens separada) ────────────
-    // Nesse caso cada linha do Estoque já contém todos os campos do item
-    // (Title/Nome, Setor, Categoria, Unidade, PrecoUnitario, CA, Min, Ativo…)
-    // Construímos allItens sinteticamente a partir do Estoque.
-    let todosItens = rawItens.map(normalizeItem);
-
-    if (todosItens.length === 0 && rawEstoque.length > 0) {
-      console.log('[loadAllData] Aba Itens vazia — construindo itens a partir do Estoque');
-      // Deduplica por Id ou pelo nome (ItemId no estoque = nome do item)
-      const seen = new Set();
-      todosItens = rawEstoque
-        .map(e => {
-          const id   = String(e.Id   || e.id   || '').trim();
-          const nome = String(e.ItemId|| e.Nome || e.Title || e.title || e.name || '').trim();
-          const setor= String(e.Setor || e.setor|| '').trim();
-          if (!id || seen.has(id)) return null;
-          seen.add(id);
-          return normalizeItem({
-            Id:            id,
-            Title:         nome || id,
-            Setor:         setor,
-            Categoria:     e.Categoria  || e.categoria  || e.Category || '',
-            Unidade:       e.Unidade    || e.unidade    || 'UN',
-            PrecoUnitario: e.PrecoUnitario|| e.Preco    || e.preco    || 0,
-            CA:            e.CA         || '',
-            TipoEst:       e.TipoEstoque|| e.TipoEst   || 'Geral',
-            Min:           e.Min        || e.min        || 0,
-            Ativo:         e.Ativo      != null ? e.Ativo : true,
-          });
-        })
-        .filter(Boolean);
-      console.log('[loadAllData] itens sintéticos gerados:', todosItens.length);
-    }
-
-    allEstoque       = rawEstoque.map(normalizeEstoque);
-    allMovimentacoes = rawMovs.map(normalizeMov);
-    allMetas         = rawMetas.map(normalizeMeta);
-    allItensCompleto = todosItens;
-
-    const setorNorm = (userSetor||'').trim();
-    allItens = (setorNorm==='admin')
-      ? todosItens
-      : todosItens.filter(i => i.Setor.trim().toLowerCase() === setorNorm.toLowerCase());
-
-    console.log('[loadAllData] allItens (filtrado):', allItens.length, '| setor:', setorNorm);
-
-    // ── Se ainda zerado, tenta filtrar estoque pelo campo Setor diretamente
-    if (allItens.length === 0 && allEstoque.length > 0 && setorNorm !== 'admin') {
-      console.warn('[loadAllData] allItens ainda vazio — filtrando Estoque por Setor diretamente');
-      const estoqueDoSetor = allEstoque.filter(e =>
-        (String(e.Setor||e.setor||'').trim().toLowerCase()) === setorNorm.toLowerCase()
-      );
-      const seen2 = new Set();
-      allItens = estoqueDoSetor
-        .map(e => {
-          const id = String(e.Id||e.id||'').trim();
-          if (!id || seen2.has(id)) return null;
-          seen2.add(id);
-          return normalizeItem({
-            Id: id,
-            Title: String(e.ItemId||e.Nome||e.Title||e.name||id).trim(),
-            Setor: String(e.Setor||e.setor||'').trim(),
-            Categoria: e.Categoria||'',
-            Unidade: e.Unidade||'UN',
-            PrecoUnitario: e.PrecoUnitario||e.Preco||0,
-            CA: e.CA||'',
-            TipoEst: e.TipoEstoque||'Geral',
-            Min: e.Min||0,
-            Ativo: true,
-          });
-        })
-        .filter(Boolean);
-      console.log('[loadAllData] allItens após fallback de estoque:', allItens.length);
-    }
-
-    // Salva resumo do resultado para diagnóstico no Dashboard
-    window._gasDebug = {
-      chaves: Object.keys(result),
-      contagens: Object.fromEntries(Object.entries(result).map(([k,v])=>[k, Array.isArray(v)?v.length:typeof v])),
-      primeiroEstoque: (allEstoque[0]||null),
-      primeiroItem: (allItens[0]||null),
-    };
+    console.log('[loadAllData] Estoque:', allEstoque.length,
+      '| Movs:', allMovimentacoes.length, '| Metas:', allMetas.length);
+    if (allEstoque[0]) console.log('[loadAllData] 1º EPI:', JSON.stringify(allEstoque[0]).substring(0,120));
 
     hideLoading();
     navigateTo('dashboard');
@@ -901,24 +853,7 @@ function loadDashboard() {
   const activeItens = allItens.filter(i=>i.Ativo!==false);
   document.getElementById('dashTotalItens').textContent = activeItens.length;
 
-  // ── Card de diagnóstico (aparece só quando itens=0 para ajudar debug) ──
-  const existingDbg = document.getElementById('debugCard');
-  if (existingDbg) existingDbg.remove();
-  if (activeItens.length === 0 && window._gasDebug) {
-    const dbg = window._gasDebug;
-    const card = document.createElement('div');
-    card.id = 'debugCard';
-    card.className = 'stat-card rounded-xl p-4 border border-warn/40';
-    card.innerHTML = `
-      <p class="text-xs font-bold text-warn mb-2">🔍 Diagnóstico — Dados do GAS (visível enquanto itens=0)</p>
-      <p class="text-xs text-light/60 mb-1"><b>Abas retornadas:</b> ${dbg.chaves.join(', ')||'(nenhuma)'}</p>
-      <p class="text-xs text-light/60 mb-1"><b>Contagens:</b> ${JSON.stringify(dbg.contagens)}</p>
-      <p class="text-xs text-light/60 mb-1"><b>1º Estoque:</b> <code>${JSON.stringify(dbg.primeiroEstoque)}</code></p>
-      <p class="text-xs text-light/60 mb-1"><b>1º Item:</b> <code>${JSON.stringify(dbg.primeiroItem)}</code></p>
-      <p class="text-xs text-light/40 mt-2">Verifique no Console (F12) os logs <code>[loadAllData]</code> para mais detalhes.</p>`;
-    const dashSection = document.getElementById('page-dashboard');
-    if (dashSection) dashSection.prepend(card);
-  }
+
 
   let lowStockCount=0; const alerts=[];
   activeItens.forEach(item=>{
@@ -993,20 +928,10 @@ function loadDashboard() {
 // ====================== ITENS ======================
 async function loadItens() {
   try {
-    const result    = await apiLoadAll();
-    allEstoque      = (result.Estoque||result.estoque||[]).map(normalizeEstoque);
-    let todosItens  = (result.Itens||result.itens||[]).map(normalizeItem);
-    const setorNorm = (userSetor||'').trim();
-    // Fallback: sintetiza itens a partir do Estoque se aba Itens estiver vazia
-    if (!todosItens.length && allEstoque.length) {
-      const seen=new Set();
-      todosItens=allEstoque.map(e=>{
-        const id=String(e.Id||'').trim(); if(!id||seen.has(id)) return null; seen.add(id);
-        return normalizeItem({Id:id,Title:String(e.ItemId||id).trim(),Setor:String(e.Setor||'').trim(),Categoria:e.Categoria||'',Unidade:e.Unidade||'UN',PrecoUnitario:e.PrecoUnitario||0,CA:e.CA||'',TipoEst:e.TipoEstoque||'Geral',Min:e.Min||0,Ativo:true});
-      }).filter(Boolean);
-    }
-    allItens = setorNorm==='admin'?todosItens:todosItens.filter(i=>i.Setor.trim().toLowerCase()===setorNorm.toLowerCase());
-  } catch(e){ console.error('loadItens:',e); }
+    const result = await apiLoadAll();
+    allEstoque = (result.Estoque || []).map(normalizeEstoque);
+    allItens   = allEstoque; // alias
+  } catch(e) { console.error('loadItens:', e); }
   renderItens();
 }
 
@@ -1061,7 +986,7 @@ function openItemModal(item=null) {
   document.getElementById('modalItemTitle').textContent=item?'Editar Item':'Novo Item';
   if(item){
     document.getElementById('itemId').value=item.Id;
-    document.getElementById('itemNome').value=item.Title||'';
+    document.getElementById('itemNome').value=item.Nome||item.Title||'';
     document.getElementById('itemCategoria').value=item.Categoria||'';
     document.getElementById('itemUnidade').value=item.Unidade||'';
     document.getElementById('itemSetor').value=item.Setor||'';
@@ -1086,16 +1011,18 @@ async function saveItem(e) {
   const btn=document.getElementById('btnSaveItem');
   btn.disabled=true; btn.innerHTML='<span class="loading-spinner w-4 h-4 mr-2"></span> Salvando...';
   const payload={
-    Id:document.getElementById('itemId').value||'',
-    Title:document.getElementById('itemNome').value,
-    Categoria:document.getElementById('itemCategoria').value,
-    Unidade:document.getElementById('itemUnidade').value,
-    Setor:document.getElementById('itemSetor').value,
-    PrecoUnitario:parseFloat(document.getElementById('itemPreco').value)||0,
-    CA:document.getElementById('itemCA').value,
-    TipoEst:document.getElementById('itemTipoEst').value,
-    Min:parseInt(document.getElementById('itemMin').value)||0,
-    Ativo:document.getElementById('itemAtivo').checked,
+    Id          : document.getElementById('itemId').value||'',
+    Nome        : document.getElementById('itemNome').value,
+    Title       : document.getElementById('itemNome').value, // retrocompat
+    Categoria   : document.getElementById('itemCategoria').value,
+    Unidade     : document.getElementById('itemUnidade').value,
+    Setor       : document.getElementById('itemSetor').value,
+    PrecoUnitario: parseFloat(document.getElementById('itemPreco').value)||0,
+    CA          : document.getElementById('itemCA').value,
+    TipoEstoque : document.getElementById('itemTipoEst').value,
+    TipoEst     : document.getElementById('itemTipoEst').value, // retrocompat
+    Min         : parseInt(document.getElementById('itemMin').value)||0,
+    Ativo       : document.getElementById('itemAtivo').checked,
   };
   try {
     await apiPost(payload.Id?'updateItem':'createItem',payload);
@@ -1108,20 +1035,10 @@ async function saveItem(e) {
 // ====================== ESTOQUE ======================
 async function loadEstoque() {
   try {
-    const result    = await apiLoadAll();
-    allEstoque      = (result.Estoque||result.estoque||[]).map(normalizeEstoque);
-    let todosItens  = (result.Itens||result.itens||[]).map(normalizeItem);
-    const setorNorm = (userSetor||'').trim();
-    // Fallback: sintetiza itens a partir do Estoque se aba Itens estiver vazia
-    if (!todosItens.length && allEstoque.length) {
-      const seen=new Set();
-      todosItens=allEstoque.map(e=>{
-        const id=String(e.Id||'').trim(); if(!id||seen.has(id)) return null; seen.add(id);
-        return normalizeItem({Id:id,Title:String(e.ItemId||id).trim(),Setor:String(e.Setor||'').trim(),Categoria:e.Categoria||'',Unidade:e.Unidade||'UN',PrecoUnitario:e.PrecoUnitario||0,CA:e.CA||'',TipoEst:e.TipoEstoque||'Geral',Min:e.Min||0,Ativo:true});
-      }).filter(Boolean);
-    }
-    allItens = setorNorm==='admin'?todosItens:todosItens.filter(i=>i.Setor.trim().toLowerCase()===setorNorm.toLowerCase());
-  } catch(err){ console.error('loadEstoque:',err); }
+    const result = await apiLoadAll();
+    allEstoque = (result.Estoque || []).map(normalizeEstoque);
+    allItens   = allEstoque;
+  } catch(err) { console.error('loadEstoque:', err); }
   renderEstoque();
 }
 
@@ -1198,23 +1115,13 @@ async function saveInventario(){
 }
 
 // ====================== MOVIMENTAÇÕES ======================
-async function loadMovimentacoes(){
+async function loadMovimentacoes() {
   try {
     const result     = await apiLoadAll();
-    allMovimentacoes = (result.Movimentacoes||result.movimentacoes||[]).map(normalizeMov);
-    allEstoque       = (result.Estoque||result.estoque||[]).map(normalizeEstoque);
-    let todosItens   = (result.Itens||result.itens||[]).map(normalizeItem);
-    const setorNorm  = (userSetor||'').trim();
-    // Fallback: sintetiza itens a partir do Estoque se aba Itens estiver vazia
-    if (!todosItens.length && allEstoque.length) {
-      const seen=new Set();
-      todosItens=allEstoque.map(e=>{
-        const id=String(e.Id||'').trim(); if(!id||seen.has(id)) return null; seen.add(id);
-        return normalizeItem({Id:id,Title:String(e.ItemId||id).trim(),Setor:String(e.Setor||'').trim(),Categoria:e.Categoria||'',Unidade:e.Unidade||'UN',PrecoUnitario:e.PrecoUnitario||0,CA:e.CA||'',TipoEst:e.TipoEstoque||'Geral',Min:e.Min||0,Ativo:true});
-      }).filter(Boolean);
-    }
-    allItens = setorNorm==='admin'?todosItens:todosItens.filter(i=>i.Setor.trim().toLowerCase()===setorNorm.toLowerCase());
-  } catch(e){ console.error('loadMovimentacoes:',e); }
+    allEstoque       = (result.Estoque       || []).map(normalizeEstoque);
+    allMovimentacoes = (result.Movimentacoes || []).map(normalizeMov);
+    allItens         = allEstoque;
+  } catch(e) { console.error('loadMovimentacoes:', e); }
   renderMovimentacoes();
 }
 
@@ -1239,7 +1146,7 @@ function renderMovimentacoes(){
             <i data-lucide="${m.Tipo==='Entrada'?'arrow-down-circle':'arrow-up-circle'}" class="w-5 h-5 ${m.Tipo==='Entrada'?'text-mint':'text-accent'}"></i>
           </div>
           <div>
-            <p class="font-semibold text-sm">${(allEstoque.find(e=>String(e.Id)===String(m.ItemId))||{}).ItemId||m.ItemNome||'-'}</p>
+            <p class="font-semibold text-sm">${m.EpiNome||m.ItemNome||(allEstoque.find(e=>String(e.Id)===String(m.EpiId||m.ItemId))||{}).Nome||'-'}</p>
             <div class="flex items-center gap-2 flex-wrap mt-1">
               <span class="badge ${m.Tipo==='Entrada'?'bg-mint/20 text-mint':'bg-accent/20 text-accent'}">${m.Tipo}</span>
               <span class="badge bg-panel text-light/60">${m.Setor||'-'}</span>
@@ -1270,10 +1177,9 @@ function openMovModal(){
 function updateMovItemList(){
   const setor=document.getElementById('movSetor').value;
   const select=document.getElementById('movItem');
-  const items=allItens.filter(i=>i.Setor===setor&&i.Ativo!==false&&i.Ativo!=='false'&&i.Ativo!=='FALSE');
+  const items=allEstoque.filter(i=>i.Setor===setor&&i.Ativo!==false&&i.Ativo!=='false'&&i.Ativo!=='FALSE');
   select.innerHTML='<option value="">Selecione um item</option>'+items.map(i=>{
-    const est=allEstoque.find(e=>String(e.Id)===String(i.Id));
-    const nome=est&&est.ItemId?String(est.ItemId).trim():i.Title;
+    const nome = String(i.Nome||i.Title||'').trim();
     return `<option value="${i.Id}" data-preco="${i.PrecoUnitario||0}">${nome}</option>`;
   }).join('');
 }
@@ -1294,17 +1200,21 @@ async function saveMov(e){
   btn.disabled=true; btn.innerHTML='<span class="loading-spinner w-4 h-4 mr-2"></span> Registrando...';
   const itemId=document.getElementById('movItem').value;
   const item=allItens.find(i=>String(i.Id)===String(itemId));
-  const payload={
-    Title:(item?item.Title:'')+' - '+document.getElementById('movTipo').value,
-    ItemId:itemId, ItemNome:item?item.Title:'',
-    Tipo:document.getElementById('movTipo').value,
-    TipoEst:item?(item.TipoEst||'Geral'):'Geral',
-    Setor:document.getElementById('movSetor').value,
-    Quantidade:parseInt(document.getElementById('movQtd').value)||0,
-    Valor:parseFloat(document.getElementById('movValor').value)||0,
-    Solicitante:document.getElementById('movSolicitante').value,
-    Obs:document.getElementById('movObs').value,
-    DataHora:new Date().toISOString(),
+  const nomeEpi = item ? (item.Nome||item.Title||'') : '';
+  const payload = {
+    Title      : nomeEpi + ' - ' + document.getElementById('movTipo').value,
+    EpiId      : itemId,
+    EpiNome    : nomeEpi,
+    ItemId     : itemId,   // retrocompat
+    ItemNome   : nomeEpi,  // retrocompat
+    Tipo       : document.getElementById('movTipo').value,
+    TipoEst    : item ? (item.TipoEstoque||item.TipoEst||'OFICIAL') : 'OFICIAL',
+    Setor      : document.getElementById('movSetor').value,
+    Quantidade : parseInt(document.getElementById('movQtd').value)  || 0,
+    Valor      : parseFloat(document.getElementById('movValor').value) || 0,
+    Solicitante: document.getElementById('movSolicitante').value,
+    Obs        : document.getElementById('movObs').value,
+    DataHora   : new Date().toISOString(),
   };
   try {
     await apiPost('createMov',payload);
