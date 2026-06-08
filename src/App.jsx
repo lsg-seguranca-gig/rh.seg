@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 // ─────────────────────────────────────────────────────────────────
 //  CONFIGURAÇÃO
 // ─────────────────────────────────────────────────────────────────
-const ADMIN_PASSWORD = "seguranca2024"; // ← Altere a senha aqui
+const ADMIN_PASSWORD = "SegurancaLSG2026"; // ← Altere a senha aqui
 
 // Todas as chamadas passam pelo proxy Vercel em /api/gas
 // Nunca chamamos o GAS diretamente do browser (bloqueado pela rede corporativa)
