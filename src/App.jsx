@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 // ─────────────────────────────────────────────────────────────────
 //  CONFIGURAÇÃO
 // ─────────────────────────────────────────────────────────────────
-const ADMIN_PASSWORD = "seguranca2024";
+const ADMIN_PASSWORD = "SegurancaLSG2026";
 const PROXY = "/api/gas";
 
 // ─────────────────────────────────────────────────────────────────
