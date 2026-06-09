@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 // ─────────────────────────────────────────────────────────────────
 //  CONFIGURAÇÃO
 // ─────────────────────────────────────────────────────────────────
-const ADMIN_PASSWORD = "seguranca2024";
+const ADMIN_PASSWORD = "SegurancaLSG2026";
 const PROXY = "/api/gas";
 
 // ─────────────────────────────────────────────────────────────────
@@ -372,16 +372,15 @@ export default function App() {
 //  Logo com fallback automático entre os dois nomes de arquivo
 // ─────────────────────────────────────────────────────────────────
 function LogoImg({ style }) {
-  const [src, setSrc] = useState("/logo lsg.png");
+  // Tenta cada variante do nome do arquivo em sequência
+  const names = ["/logo_lsg.png", "/logo-lsg.png", "/logolsg.png", "/logo%20lsg.png"];
+  const [idx, setIdx] = useState(0);
   return (
     <img
-      src={src}
+      src={names[idx]}
       alt="LSG Sky Chefs"
       style={style}
-      onError={() => {
-        if (src === "/logo_lsg.png") setSrc("/logo lsg.png");
-        else if (src === "/logo lsg.png") setSrc("/logo-lsg.png");
-      }}
+      onError={() => setIdx(i => Math.min(i + 1, names.length - 1))}
     />
   );
 }
