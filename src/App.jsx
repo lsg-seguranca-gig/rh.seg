@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 // ─────────────────────────────────────────────────────────────────
 //  CONFIGURAÇÃO
 // ─────────────────────────────────────────────────────────────────
-const ADMIN_PASSWORD = "SegurancaLSG2026";
+const ADMIN_PASSWORD = "seguranca2024";
 const PROXY = "/api/gas";
 
 // ─────────────────────────────────────────────────────────────────
@@ -152,12 +152,7 @@ export default function App() {
       {/* CABEÇALHO */}
       <header style={s.header}>
         <div style={s.headerInner}>
-          <img
-            src="/logo_lsg.png"
-            alt="LSG Sky Chefs"
-            style={s.logo}
-            onError={e => { e.target.style.display = "none"; }}
-          />
+          <LogoImg style={s.logo} />
         </div>
         {/* Botão dark mode no canto direito do header */}
         <button style={s.darkBtn} onClick={() => setDark(d => !d)} title={dark ? "Modo claro" : "Modo escuro"}>
@@ -372,6 +367,25 @@ export default function App() {
   );
 }
 
+
+// ─────────────────────────────────────────────────────────────────
+//  Logo com fallback automático entre os dois nomes de arquivo
+// ─────────────────────────────────────────────────────────────────
+function LogoImg({ style }) {
+  const [src, setSrc] = useState("/logo lsg.png");
+  return (
+    <img
+      src={src}
+      alt="LSG Sky Chefs"
+      style={style}
+      onError={() => {
+        if (src === "/logo_lsg.png") setSrc("/logo lsg.png");
+        else if (src === "/logo lsg.png") setSrc("/logo-lsg.png");
+      }}
+    />
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────
 //  Login Screen — com botão mostrar/ocultar senha
 // ─────────────────────────────────────────────────────────────────
@@ -483,9 +497,9 @@ function makeStyles(C) {
   return {
     root:        { minHeight: "100vh", background: C.bg, fontFamily: "'Segoe UI','Helvetica Neue',Arial,sans-serif", color: C.textMain, transition: "background 0.2s, color 0.2s" },
     // Header
-    header:      { background: C.header, borderBottom: `3px solid ${C.headerBorder}`, height: 72, display: "flex", alignItems: "center", position: "relative" },
+    header:      { background: C.header, borderBottom: `4px solid ${C.headerBorder}`, minHeight: 88, display: "flex", alignItems: "center", position: "relative", padding: "12px 0" },
     headerInner: { flex: 1, display: "flex", alignItems: "center", justifyContent: "center" },
-    logo:        { maxHeight: 52, maxWidth: 260, objectFit: "contain" },
+    logo:        { height: 62, maxWidth: 320, objectFit: "contain" },
     darkBtn:     { position: "absolute", right: 20, top: "50%", transform: "translateY(-50%)", background: "transparent", border: `1.5px solid ${C.border}`, borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontSize: 18, color: C.textSub },
     // Página
     pageWrap:    { maxWidth: 1200, margin: "0 auto", padding: "24px 24px 48px" },
