@@ -203,7 +203,8 @@ export default function App() {
   };
   const handleInvSave = () => {
     const newEpis = epis.map(e => ({ ...e, quantidade: invDraft[epiKey(e.nome, e.ca)] ?? e.quantidade }));
-    setEpis(newEpis); saveSheet(newEpis); setInvDirty(false);
+    setEpis(newEpis); saveSheet(newEpis);
+    setInvDirty(false); setUploadPreview(null); setUploadError("");
   };
   const handleInvCancel = () => {
     const draft = {}; epis.forEach(e => { draft[epiKey(e.nome, e.ca)] = e.quantidade; });
@@ -213,6 +214,7 @@ export default function App() {
   };
 
   // ── Upload de planilha ───────────────────────
+  // Fluxo: lê arquivo → carrega no invDraft → usuário revisa na tabela → clica Salvar Inventário
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -224,17 +226,16 @@ export default function App() {
         const ws   = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
         if (rows.length < 2) { setUploadError("A planilha está vazia."); return; }
-        // Valida cabeçalho — aceita com ou sem coluna ID na frente
+
         const header = rows[0].map(h => String(h).toLowerCase().trim());
-        // Detecta se ainda tem coluna ID (coluna A = "id")
-        const hasId = header[0] === "id";
+        // Aceita planilha com ou sem coluna ID na frente
+        const hasId  = header[0] === "id";
         const offset = hasId ? 1 : 0;
-        const colNome = header[offset];
-        if (!colNome || !colNome.includes("nome")) {
-          setUploadError("Cabeçalho inválido. Coluna A deve ser 'Nome do EPI' (ou B se ainda houver coluna ID).");
+        if (!header[offset] || !header[offset].includes("nome")) {
+          setUploadError("Cabeçalho inválido. Coluna A deve ser 'Nome do EPI'.");
           return;
         }
-        // Lê dados ignorando coluna ID se existir
+
         const imported = rows.slice(1).filter(r => r[offset]).map(r => ({
           nome:       String(r[offset]     || "").trim(),
           ca:         String(r[offset + 1] || "").trim(),
@@ -243,7 +244,16 @@ export default function App() {
           minimo:     parseInt(r[offset + 4], 10) || 0,
         }));
         if (imported.length === 0) { setUploadError("Nenhum dado válido encontrado."); return; }
+
+        // Substitui lista de EPIs e carrega quantidades no rascunho do inventário
+        setEpis(imported);
+        const draft = {};
+        imported.forEach(e => { draft[epiKey(e.nome, e.ca)] = e.quantidade; });
+        setInvDraft(draft);
+        setInvDirty(true);   // ← habilita o botão Salvar Inventário
         setUploadPreview(imported);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        notify(`✅ ${imported.length} EPIs carregados — revise e clique em Salvar Inventário.`, "info");
       } catch (err) { setUploadError("Erro ao ler o arquivo: " + err.message); }
     };
     reader.readAsArrayBuffer(file);
@@ -251,12 +261,9 @@ export default function App() {
 
   const handleUploadConfirm = async () => {
     if (!uploadPreview) return;
-    setEpis(uploadPreview);
-    const draft = {}; uploadPreview.forEach(e => { draft[epiKey(e.nome, e.ca)] = e.quantidade; });
-    setInvDraft(draft); setInvDirty(false);
     await saveSheet(uploadPreview);
     setUploadPreview(null); setUploadError("");
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    setInvDirty(false);
     notify("✅ Inventário importado e gravado com sucesso!");
   };
 
@@ -385,69 +392,28 @@ export default function App() {
                     <div style={{ ...s.saveMsg, ...s.saveMsgErr, marginBottom: 14 }}>❌ {uploadError}</div>
                   )}
 
-                  {/* Prévia do upload */}
+                  {/* Banner de confirmação após upload */}
                   {uploadPreview && (
                     <div style={s.previewBox}>
                       <div style={s.previewHeader}>
                         <div>
-                          <strong style={{ color: C.primary }}>📊 Prévia da importação</strong>
-                          <span style={s.previewCount}> — {uploadPreview.length} EPIs encontrados</span>
-                        </div>
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                          <button style={s.saveBtn} onClick={handleUploadConfirm}>✅ Confirmar importação</button>
-                          <button style={s.cancelBtn} onClick={() => {
-                            setUploadPreview(null); setUploadError("");
-                            if (fileInputRef.current) fileInputRef.current.value = "";
-                          }}>Cancelar</button>
+                          <strong style={{ color: C.primary }}>📊 Planilha carregada</strong>
+                          <span style={s.previewCount}> — {uploadPreview.length} EPIs prontos para salvar</span>
                         </div>
                       </div>
                       <div style={s.previewWarn}>
-                        ⚠️ Ao confirmar, <strong>todos os dados atuais serão substituídos</strong> pelos dados do arquivo.
-                      </div>
-                      <div style={s.tableWrap}>
-                        <table style={s.table}>
-                          <thead>
-                            <tr>{["Nome do EPI", "CA", "Local", "Quantidade", "Mínimo", "Status"].map(h => (
-                              <th key={h} style={s.th}>{h}</th>
-                            ))}</tr>
-                          </thead>
-                          <tbody>
-                            {uploadPreview.slice(0, 12).map((epi, i) => {
-                              const emAlerta = isEmAlerta(epi, uploadPreview);
-                              return (
-                                <tr key={i} style={{ ...s.tr, ...(emAlerta ? s.trAlert : {}) }}>
-                                  <td style={{ ...s.td, fontWeight: 600 }}>{epi.nome}</td>
-                                  <td style={s.td}><span style={s.caBadge}>{epi.ca}</span></td>
-                                  <td style={s.td}>
-                                    <span style={{ ...s.localBadge, ...(epi.local === "Segurança do Trabalho" ? s.localST : s.localAlmox) }}>
-                                      {epi.local}
-                                    </span>
-                                  </td>
-                                  <td style={{ ...s.td, textAlign: "center", fontWeight: 700, color: emAlerta ? C.accent : C.textMain }}>{epi.quantidade}</td>
-                                  <td style={{ ...s.td, textAlign: "center" }}>{epi.minimo}</td>
-                                  <td style={s.td}>{emAlerta ? <span style={s.statusLow}>⚠ Baixo</span> : <span style={s.statusOk}>✓ OK</span>}</td>
-                                </tr>
-                              );
-                            })}
-                            {uploadPreview.length > 12 && (
-                              <tr><td colSpan={6} style={{ ...s.emptyCell, padding: "10px 13px", fontStyle: "italic" }}>
-                                … e mais {uploadPreview.length - 12} EPIs
-                              </td></tr>
-                            )}
-                          </tbody>
-                        </table>
+                        ⚠️ Os dados foram carregados na tabela abaixo. Revise e clique em <strong>💾 Salvar Inventário</strong> para gravar no Google Sheets.
                       </div>
                     </div>
                   )}
 
-                  {invDirty && !uploadPreview && (
+                  {invDirty && (
                     <div style={s.invDirtyBanner}>
                       ✏️ Há alterações não salvas — clique em <strong>Salvar Inventário</strong> para confirmar.
                     </div>
                   )}
 
-                  {!uploadPreview && (
-                    <>
+                  <>
                       <FilterBar fil={invFil} setFil={setInvFil} s={s} C={C} />
                       <div style={s.desktopOnly}>
                         <TableInventario epis={invFiltered} allEpis={epis} invDraft={invDraft}
@@ -462,8 +428,7 @@ export default function App() {
                         {invFiltered.length === 0 && <p style={s.emptyMobile}>Nenhum EPI encontrado.</p>}
                       </div>
                       <p style={s.countNote}>{invFiltered.length} de {epis.length} linhas exibidas</p>
-                    </>
-                  )}
+                  </>
                 </div>
               )}
 
