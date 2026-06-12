@@ -2,12 +2,12 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import * as XLSX from "xlsx";
 import { LIGHT, DARK, makeStyles } from "./styles";
 import { epiKey, rowsToEpis, episToRows, isEmAlerta, minimoCompartilhado,
-         applyFilters, DEMO_EPIS, BLANK_FILTER,
+         applyFilters, DEMO_EPIS, BLANK_FILTER, groupEpisByName,
          rowsToHistorico, buildHistoricoEntries, computeDashboard } from "./utils";
 import { exportarExcel, exportarPDF } from "./export";
 import { LogoImg, LoginScreen, Field, FilterBar,
          TableEstoque, CardEpi, TableInventario, CardInventario,
-         SplashScreen, ToastContainer, DashboardTab, HistoricoTab } from "./components";
+         SplashScreen, ToastContainer, DashboardTab, HistoricoTab, CadastroTab } from "./components";
 
 const ADMIN_PASSWORD = "SegurancaLSG2026";
 const PROXY = "/api/gas";
@@ -258,6 +258,7 @@ export default function App() {
   const invFiltered = applyFilters(epis, invFil, epis);
   const alertaEpis  = epis.filter(e => isEmAlerta(e, epis));
   const dashboard   = computeDashboard(epis);
+  const grupos      = groupEpisByName(epis);
 
   // ── Atalhos de teclado ──────────────────────
   useEffect(() => {
@@ -321,6 +322,7 @@ export default function App() {
               { key:"dashboard",  label:"🏠 Visão Geral" },
               { key:"estoque",    label:"📦 Estoque"   },
               { key:"inventario", label:"📋 Inventário" },
+              { key:"cadastro",   label:"🗂️ Cadastro de EPIs" },
               { key:"historico",  label:"🕒 Histórico" },
               { key:"adicionar",  label: editIdx !== null ? "✏️ Editar EPI" : "➕ Novo EPI" },
             ].map(t => (
@@ -352,9 +354,7 @@ export default function App() {
             {/* ══ ESTOQUE ══ */}
             {tab === "estoque" && (
               <div style={s.tabContent}>
-                <div style={s.exportRow}>
-                  <FilterBar fil={estFil} setFil={setEstFil} s={s} onReload={loadSheet} showReload />
-                </div>
+                <FilterBar fil={estFil} setFil={setEstFil} s={s} onReload={loadSheet} showReload />
                 <div style={{ ...s.exportRow, marginBottom:14 }}>
                   <button style={s.exportBtn} onClick={handleExportExcel}>📊 Exportar Excel</button>
                   <button style={s.exportBtn} onClick={handleExportPDF}>🧾 Exportar PDF</button>
@@ -449,6 +449,18 @@ export default function App() {
                   {invFiltered.length === 0 && <p style={s.emptyMobile}>Nenhum EPI encontrado.</p>}
                 </div>
                 <p style={s.countNote}>{invFiltered.length} de {epis.length} linhas exibidas</p>
+              </div>
+            )}
+
+            {/* ══ CADASTRO DE EPIs ══ */}
+            {tab === "cadastro" && (
+              <div style={s.tabContent}>
+                <h2 style={s.invTitle}>🗂️ Cadastro de EPIs</h2>
+                <p style={{ ...s.sysSub, marginBottom:16 }}>
+                  EPIs agrupados por nome. Clique em um item para ver todos os CAs cadastrados.
+                </p>
+                <CadastroTab grupos={grupos} allEpis={epis} s={s} C={C}
+                  onEdit={handleEdit} onDelete={setDeleteConfirm} />
               </div>
             )}
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { epiKey, isEmAlerta, minimoCompartilhado, USUARIOS } from "./utils";
+import { epiKey, isEmAlerta, minimoCompartilhado, USUARIOS, groupEpisByName } from "./utils";
 
 // ── Logo com fallback ─────────────────────────
 export function LogoImg({ style }) {
@@ -76,26 +76,37 @@ export function Field({ label, error, children, s }) {
 }
 
 // ── Barra de filtros ──────────────────────────
+// Usa estado local (rascunho) para texto/local/status; só aplica ao
+// clicar em "Buscar" ou pressionar Enter — corrige a sensação de que
+// o filtro "não faz nada".
 export function FilterBar({ fil, setFil, s, onReload, showReload }) {
+  const [draft, setDraft] = useState(fil);
+
+  const apply = () => setFil(draft);
+  const clear = () => { const blank = { text:"", local:"", status:"" }; setDraft(blank); setFil(blank); };
+
   return (
     <div style={s.filterBar}>
       <input style={{ ...s.searchBox, flex:2, minWidth:120 }}
         placeholder="🔍 Buscar por nome ou CA…"
-        value={fil.text} onChange={e => setFil(f => ({ ...f, text:e.target.value }))} />
-      <select style={s.filterSelect} value={fil.local}
-        onChange={e => setFil(f => ({ ...f, local:e.target.value }))}>
+        value={draft.text}
+        onChange={e => setDraft(d => ({ ...d, text:e.target.value }))}
+        onKeyDown={e => { if (e.key === "Enter") apply(); }} />
+      <select style={s.filterSelect} value={draft.local}
+        onChange={e => setDraft(d => ({ ...d, local:e.target.value }))}>
         <option value="">Todos os locais</option>
         <option>Almoxarifado</option>
         <option>Segurança do Trabalho</option>
       </select>
-      <select style={s.filterSelect} value={fil.status}
-        onChange={e => setFil(f => ({ ...f, status:e.target.value }))}>
+      <select style={s.filterSelect} value={draft.status}
+        onChange={e => setDraft(d => ({ ...d, status:e.target.value }))}>
         <option value="">Todos os status</option>
         <option value="ok">✓ OK</option>
         <option value="baixo">⚠ Baixo</option>
       </select>
-      {(fil.text || fil.local || fil.status) && (
-        <button style={s.clearBtn} onClick={() => setFil({ text:"", local:"", status:"" })}>✕ Limpar</button>
+      <button style={s.reloadBtn} onClick={apply}>🔍 Buscar</button>
+      {(fil.text || fil.local || fil.status || draft.text || draft.local || draft.status) && (
+        <button style={s.clearBtn} onClick={clear}>✕ Limpar</button>
       )}
       {showReload && (
         <button style={s.reloadBtn} onClick={onReload}>↻ Recarregar</button>
@@ -110,19 +121,18 @@ export function TableEstoque({ epis, allEpis, s, C, onEdit, onDelete }) {
     <div style={s.tableWrap}>
       <table style={s.table}>
         <thead>
-          <tr>{["Nome do EPI","CA","Local","Quantidade","Mínimo","Status","Ações"].map(h => (
+          <tr>{["Nome do EPI","Local","Quantidade","Mínimo","Status","Ações"].map(h => (
             <th key={h} style={s.th}>{h}</th>
           ))}</tr>
         </thead>
         <tbody>
-          {epis.length === 0 && <tr><td colSpan={7} style={s.emptyCell}>Nenhum EPI encontrado.</td></tr>}
+          {epis.length === 0 && <tr><td colSpan={6} style={s.emptyCell}>Nenhum EPI encontrado.</td></tr>}
           {epis.map(epi => {
             const emAlerta = isEmAlerta(epi, allEpis);
             const realIdx  = allEpis.findIndex(e => epiKey(e.nome,e.ca) === epiKey(epi.nome,epi.ca));
             return (
               <tr key={epiKey(epi.nome,epi.ca)} style={{ ...s.tr, ...(emAlerta ? s.trAlert : {}) }}>
                 <td style={{ ...s.td, fontWeight:600 }}>{epi.nome}</td>
-                <td style={s.td}><span style={s.caBadge}>{epi.ca}</span></td>
                 <td style={s.td}>
                   <span style={{ ...s.localBadge, ...(epi.local==="Segurança do Trabalho" ? s.localST : s.localAlmox) }}>
                     {epi.local}
@@ -157,14 +167,10 @@ export function CardEpi({ epi, allEpis, s, C, onEdit, onDelete }) {
   return (
     <div style={{ ...s.mobileCard, ...(emAlerta ? { borderColor:C.alertBorder, background:C.alertBg } : {}) }}>
       <div style={s.mobileCardHeader}>
-        <span style={s.caBadge}>{epi.ca}</span>
+        <span style={{ ...s.localBadge, ...(epi.local==="Segurança do Trabalho" ? s.localST : s.localAlmox) }}>{epi.local}</span>
         {emAlerta ? <span style={s.statusLow}>⚠ Baixo</span> : <span style={s.statusOk}>✓ OK</span>}
       </div>
       <div style={s.mobileCardName}>{epi.nome}</div>
-      <div style={s.mobileCardRow}>
-        <span style={s.mobileLabel}>Local</span>
-        <span style={{ ...s.localBadge, ...(epi.local==="Segurança do Trabalho" ? s.localST : s.localAlmox) }}>{epi.local}</span>
-      </div>
       <div style={s.mobileCardRow}>
         <span style={s.mobileLabel}>Quantidade</span>
         <span style={{ fontWeight:700, fontSize:16, color:emAlerta?C.accent:C.textMain }}>{epi.quantidade}</span>
@@ -187,12 +193,12 @@ export function TableInventario({ epis, allEpis, invDraft, s, C, onChange }) {
     <div style={s.tableWrap}>
       <table style={s.table}>
         <thead>
-          <tr>{["Nome do EPI","CA","Local","Qtd. Atual","Nova Qtd.","Diferença","Status"].map(h => (
+          <tr>{["Nome do EPI","Local","Qtd. Atual","Nova Qtd.","Diferença","Status"].map(h => (
             <th key={h} style={s.th}>{h}</th>
           ))}</tr>
         </thead>
         <tbody>
-          {epis.length === 0 && <tr><td colSpan={7} style={s.emptyCell}>Nenhum EPI encontrado.</td></tr>}
+          {epis.length === 0 && <tr><td colSpan={6} style={s.emptyCell}>Nenhum EPI encontrado.</td></tr>}
           {epis.map(epi => {
             const k        = epiKey(epi.nome, epi.ca);
             const novaQtd  = invDraft[k] ?? epi.quantidade;
@@ -201,7 +207,6 @@ export function TableInventario({ epis, allEpis, invDraft, s, C, onChange }) {
             return (
               <tr key={k} style={{ ...s.tr, ...(emAlerta ? s.trAlert : {}) }}>
                 <td style={{ ...s.td, fontWeight:600 }}>{epi.nome}</td>
-                <td style={s.td}><span style={s.caBadge}>{epi.ca}</span></td>
                 <td style={s.td}>
                   <span style={{ ...s.localBadge, ...(epi.local==="Segurança do Trabalho" ? s.localST : s.localAlmox) }}>
                     {epi.local}
@@ -239,14 +244,10 @@ export function CardInventario({ epi, allEpis, novaQtd, s, C, onChange }) {
   return (
     <div style={{ ...s.mobileCard, ...(emAlerta ? { borderColor:C.alertBorder, background:C.alertBg } : {}) }}>
       <div style={s.mobileCardHeader}>
-        <span style={s.caBadge}>{epi.ca}</span>
+        <span style={{ ...s.localBadge, ...(epi.local==="Segurança do Trabalho" ? s.localST : s.localAlmox) }}>{epi.local}</span>
         {emAlerta ? <span style={s.statusLow}>⚠ Baixo</span> : <span style={s.statusOk}>✓ OK</span>}
       </div>
       <div style={s.mobileCardName}>{epi.nome}</div>
-      <div style={s.mobileCardRow}>
-        <span style={s.mobileLabel}>Local</span>
-        <span style={{ ...s.localBadge, ...(epi.local==="Segurança do Trabalho" ? s.localST : s.localAlmox) }}>{epi.local}</span>
-      </div>
       <div style={s.mobileCardRow}>
         <span style={s.mobileLabel}>Qtd. Atual</span>
         <span style={{ color:C.textSub, fontWeight:600 }}>{epi.quantidade}</span>
@@ -405,6 +406,84 @@ export function HistoricoTab({ historico, s, C }) {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  CADASTRO DE EPIs — agrupado por nome, com CAs expansíveis
+// ─────────────────────────────────────────────────────────────────
+export function CadastroTab({ grupos, allEpis, s, C, onEdit, onDelete }) {
+  const [expanded, setExpanded] = useState({});
+  const toggle = (nome) => setExpanded(e => ({ ...e, [nome]: !e[nome] }));
+
+  return (
+    <div style={s.tabContent}>
+      {grupos.length === 0 && <p style={s.emptyMobile}>Nenhum EPI cadastrado.</p>}
+      <div style={s.cadastroList}>
+        {grupos.map(grupo => {
+          const isOpen = !!expanded[grupo.nome];
+          const algumAlerta = grupo.linhas.some(l => isEmAlerta(l, allEpis));
+          return (
+            <div key={grupo.nome} style={{ ...s.cadastroCard, ...(algumAlerta ? { borderColor:C.alertBorder } : {}) }}>
+              <div style={s.cadastroHeader} onClick={() => toggle(grupo.nome)}>
+                <div style={s.cadastroHeaderLeft}>
+                  <span style={s.cadastroChevron}>{isOpen ? "▾" : "▸"}</span>
+                  <div>
+                    <div style={s.cadastroNome}>{grupo.nome}</div>
+                    <div style={s.cadastroSub}>
+                      {grupo.linhas.length} CA{grupo.linhas.length > 1 ? "s" : ""} cadastrado{grupo.linhas.length > 1 ? "s" : ""}
+                      {" · "}Total: <strong>{grupo.totalQtd}</strong> · Mínimo: {grupo.minimo}
+                    </div>
+                  </div>
+                </div>
+                {algumAlerta && <span style={s.statusLow}>⚠ Atenção</span>}
+              </div>
+
+              {isOpen && (
+                <div style={s.cadastroBody}>
+                  <div style={s.tableWrap}>
+                    <table style={s.table}>
+                      <thead>
+                        <tr>{["CA","Local","Quantidade","Mínimo","Status","Ações"].map(h => (
+                          <th key={h} style={s.th}>{h}</th>
+                        ))}</tr>
+                      </thead>
+                      <tbody>
+                        {grupo.linhas.map(epi => {
+                          const emAlerta = isEmAlerta(epi, allEpis);
+                          const realIdx  = allEpis.findIndex(e => epiKey(e.nome,e.ca) === epiKey(epi.nome,epi.ca));
+                          return (
+                            <tr key={epiKey(epi.nome,epi.ca)} style={{ ...s.tr, ...(emAlerta ? s.trAlert : {}) }}>
+                              <td style={s.td}><span style={s.caBadge}>{epi.ca || "—"}</span></td>
+                              <td style={s.td}>
+                                <span style={{ ...s.localBadge, ...(epi.local==="Segurança do Trabalho" ? s.localST : s.localAlmox) }}>
+                                  {epi.local}
+                                </span>
+                              </td>
+                              <td style={{ ...s.td, textAlign:"center", fontWeight:700, color:emAlerta?C.accent:C.textMain }}>{epi.quantidade}</td>
+                              <td style={{ ...s.td, textAlign:"center" }}>{epi.minimo}</td>
+                              <td style={s.td}>
+                                {emAlerta ? <span style={s.statusLow}>⚠ Baixo</span> : <span style={s.statusOk}>✓ OK</span>}
+                              </td>
+                              <td style={s.td}>
+                                <div style={s.actionRow}>
+                                  <button style={s.editBtn}   onClick={() => onEdit(epi, realIdx)}>Editar</button>
+                                  <button style={s.deleteBtn} onClick={() => onDelete(realIdx)}>Excluir</button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

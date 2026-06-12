@@ -170,5 +170,15 @@ export function makeStyles(C) {
     // ── Export buttons ──────────────────────────
     exportRow:    { display:"flex", gap:8, flexWrap:"wrap" },
     exportBtn:    { background:C.surface, color:C.primary, border:`1.5px solid ${C.primary}`, borderRadius:8, padding:"9px 16px", cursor:"pointer", fontWeight:700, fontSize:13, whiteSpace:"nowrap" },
+
+    // ── Cadastro de EPIs ─────────────────────────
+    cadastroList:   { display:"flex", flexDirection:"column", gap:10 },
+    cadastroCard:   { background:C.surface, border:`1.5px solid ${C.border}`, borderRadius:12, overflow:"hidden", animation:"epi-fade-in 0.25s ease-out" },
+    cadastroHeader: { display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 16px", cursor:"pointer", gap:10 },
+    cadastroHeaderLeft: { display:"flex", alignItems:"center", gap:12 },
+    cadastroChevron:{ fontSize:16, color:C.textSub, width:16, flexShrink:0 },
+    cadastroNome:   { fontWeight:700, fontSize:15, color:C.textMain },
+    cadastroSub:    { fontSize:12, color:C.textSub, marginTop:2 },
+    cadastroBody:   { padding:"0 16px 16px" },
   };
 }

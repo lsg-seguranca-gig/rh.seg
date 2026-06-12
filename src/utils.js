@@ -123,3 +123,19 @@ export function computeDashboard(epis) {
     .slice(0, 5);
   return { total, totalAlertas: alertas.length, porLocal, criticos };
 }
+
+// ─────────────────────────────────────────────────────────────────
+//  CADASTRO — agrupamento por nome (para tela de Cadastro de EPIs)
+//  Cada grupo reúne todas as linhas (CAs diferentes) do mesmo nome.
+// ─────────────────────────────────────────────────────────────────
+export function groupEpisByName(epis) {
+  const map = {};
+  epis.forEach(e => {
+    const key = e.nome.trim().toLowerCase();
+    if (!map[key]) map[key] = { nome:e.nome, linhas:[], totalQtd:0, minimo:0 };
+    map[key].linhas.push(e);
+    map[key].totalQtd += e.quantidade;
+    map[key].minimo = Math.max(map[key].minimo, e.minimo);
+  });
+  return Object.values(map).sort((a,b) => a.nome.localeCompare(b.nome, "pt-BR"));
+}
