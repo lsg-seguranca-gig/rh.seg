@@ -121,5 +121,54 @@ export function makeStyles(C) {
     modalTitle:   { margin:"0 0 10px", fontSize:17, fontWeight:800, color:C.accent },
     modalText:    { margin:"0 0 20px", fontSize:14, lineHeight:1.6, color:C.textMain },
     modalActions: { display:"flex", gap:10 },
+
+    // ── Splash screen ──────────────────────────
+    splashWrap:   { position:"fixed", inset:0, background:C.bg, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", zIndex:2000, gap:20 },
+    splashLogo:   { height:90, maxWidth:320, objectFit:"contain", animation:"epi-pulse 1.6s ease-in-out infinite" },
+    splashSpinner:{ width:34, height:34, border:`4px solid ${C.border}`, borderTopColor:C.primary, borderRadius:"50%", animation:"spin 0.8s linear infinite" },
+    splashText:   { fontSize:13, color:C.textSub, fontWeight:600 },
+
+    // ── Toast ──────────────────────────────────
+    toastWrap:    { position:"fixed", bottom:20, left:"50%", transform:"translateX(-50%)", zIndex:3000, display:"flex", flexDirection:"column", gap:8, alignItems:"center", width:"calc(100% - 32px)", maxWidth:420 },
+    toast:        { background:C.surface, border:`1.5px solid ${C.ok}`, color:C.ok, borderRadius:10, padding:"12px 20px", fontWeight:700, fontSize:14, boxShadow:"0 8px 24px rgba(0,0,0,0.18)", display:"flex", alignItems:"center", gap:10, animation:"epi-toast-in 0.25s ease-out", width:"100%", textAlign:"center", justifyContent:"center" },
+    toastErr:     { borderColor:C.accent, color:C.accent },
+    toastInfo:    { borderColor:C.primary, color:C.primary },
+
+    // ── Tab content animation ─────────────────
+    tabContent:   { animation:"epi-fade-in 0.25s ease-out" },
+
+    // ── Dashboard ──────────────────────────────
+    dashGrid:     { display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))", gap:14, marginBottom:20 },
+    dashCard:     { background:C.surface, border:`1px solid ${C.border}`, borderRadius:14, padding:"20px 18px", boxShadow:"0 2px 8px rgba(0,0,0,0.06)", display:"flex", flexDirection:"column", gap:6, transition:"transform 0.15s" },
+    dashCardIcon: { fontSize:26 },
+    dashCardVal:  { fontSize:30, fontWeight:800, color:C.primary, lineHeight:1 },
+    dashCardLabel:{ fontSize:12, color:C.textSub, fontWeight:600, textTransform:"uppercase", letterSpacing:0.4 },
+    dashCardAlert:{ borderColor:C.alertBorder, background:C.alertBg },
+    dashCardAlertVal: { color:C.accent },
+    dashRow:      { display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:20 },
+    dashSection:  { background:C.surface, border:`1px solid ${C.border}`, borderRadius:14, padding:"18px 18px", boxShadow:"0 2px 8px rgba(0,0,0,0.06)" },
+    dashSectionTitle: { fontSize:14, fontWeight:800, color:C.primary, marginBottom:14 },
+    pieWrap:      { display:"flex", alignItems:"center", justifyContent:"center", gap:20, flexWrap:"wrap" },
+    pieLegend:    { display:"flex", flexDirection:"column", gap:8 },
+    pieLegendItem:{ display:"flex", alignItems:"center", gap:8, fontSize:13, color:C.textMain },
+    pieDot:       { width:12, height:12, borderRadius:"50%", flexShrink:0 },
+    criticoItem:  { display:"flex", justifyContent:"space-between", alignItems:"center", padding:"9px 0", borderBottom:`1px solid ${C.border}`, fontSize:13 },
+    criticoNome:  { fontWeight:600, color:C.textMain },
+    criticoCa:    { fontSize:11, color:C.textSub },
+    criticoQtd:   { fontWeight:800, color:C.accent, fontSize:15 },
+
+    // ── Histórico ───────────────────────────────
+    histTimeline: { display:"flex", flexDirection:"column", gap:10 },
+    histItem:     { background:C.surface, border:`1px solid ${C.border}`, borderRadius:10, padding:"12px 16px", display:"flex", alignItems:"flex-start", gap:12, animation:"epi-fade-in 0.25s ease-out" },
+    histIconUp:   { fontSize:18, color:C.ok, flexShrink:0, marginTop:2 },
+    histIconDown: { fontSize:18, color:C.accent, flexShrink:0, marginTop:2 },
+    histBody:     { flex:1 },
+    histTitle:    { fontSize:13, fontWeight:700, color:C.textMain },
+    histMeta:     { fontSize:12, color:C.textSub, marginTop:2 },
+    histDiff:     { fontWeight:800, fontSize:14, flexShrink:0, whiteSpace:"nowrap" },
+
+    // ── Export buttons ──────────────────────────
+    exportRow:    { display:"flex", gap:8, flexWrap:"wrap" },
+    exportBtn:    { background:C.surface, color:C.primary, border:`1.5px solid ${C.primary}`, borderRadius:8, padding:"9px 16px", cursor:"pointer", fontWeight:700, fontSize:13, whiteSpace:"nowrap" },
   };
 }

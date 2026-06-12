@@ -27,7 +27,8 @@ export default async function handler(req, res) {
   try {
     // ── GET → leitura da planilha ──────────────────────────────────
     if (req.method === "GET") {
-      const gasRes = await fetch(GAS_URL, {
+      const sheet = req.query && req.query.sheet ? `?sheet=${encodeURIComponent(req.query.sheet)}` : "";
+      const gasRes = await fetch(GAS_URL + sheet, {
         method: "GET",
         redirect: "follow",
       });
