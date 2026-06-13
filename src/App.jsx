@@ -303,7 +303,11 @@ export default function App() {
 
           {/* Título */}
           <div style={s.titleStrip}>
-
+            <div>
+              <h1 style={s.sysTitle}>Controle de EPIs</h1>
+              <p style={s.sysSub}>Olá, {usuario} · Gestão de Equipamentos de Proteção Individual</p>
+              <p style={{ fontSize:10, color:C.textSub, opacity:0.6, marginTop:2 }}>build {BUILD_TAG}</p>
+            </div>
             <div style={s.rightActions}>
               {alertaEpis.length > 0 && (
                 <button style={s.alertBadge} onClick={() => setTab("alertas")}>
