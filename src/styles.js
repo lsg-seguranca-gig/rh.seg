@@ -43,7 +43,7 @@ export function makeStyles(C) {
     clearBtn:     { background:C.alertBg, color:C.accent, border:"none", borderRadius:8, padding:"9px 13px", cursor:"pointer", fontWeight:600, fontSize:13, whiteSpace:"nowrap" },
     reloadBtn:    { background:C.primary, color:"#fff", border:"none", borderRadius:8, padding:"9px 14px", cursor:"pointer", fontWeight:600, fontSize:13, whiteSpace:"nowrap" },
     desktopOnly:  { display:"block" },
-    mobileOnly:   { display:"none" },
+    mobileOnly:   { display:"none"  },
     tableWrap:    { overflowX:"auto", borderRadius:12, border:`1px solid ${C.border}`, background:C.surface, boxShadow:"0 2px 8px rgba(0,0,0,0.07)" },
     table:        { width:"100%", borderCollapse:"collapse", minWidth:600 },
     th:           { background:C.primary, color:"#fff", padding:"11px 13px", textAlign:"left", fontSize:11, fontWeight:700, letterSpacing:0.5, textTransform:"uppercase", whiteSpace:"nowrap" },
