@@ -76,36 +76,30 @@ export function Field({ label, error, children, s }) {
 }
 
 // ── Barra de filtros ──────────────────────────
-// Usa estado local (rascunho) para texto/local/status; só aplica ao
-// clicar em "Buscar" ou pressionar Enter — corrige a sensação de que
-// o filtro "não faz nada".
+// Filtro reativo: qualquer alteração (texto, local ou status) aplica
+// imediatamente. O botão "Limpar" reseta tudo de uma vez.
 export function FilterBar({ fil, setFil, s, onReload, showReload }) {
-  const [draft, setDraft] = useState(fil);
-
-  const apply = () => setFil(draft);
-  const clear = () => { const blank = { text:"", local:"", status:"" }; setDraft(blank); setFil(blank); };
+  const clear = () => setFil({ text:"", local:"", status:"" });
 
   return (
     <div style={s.filterBar}>
       <input style={{ ...s.searchBox, flex:2, minWidth:120 }}
         placeholder="🔍 Buscar por nome ou CA…"
-        value={draft.text}
-        onChange={e => setDraft(d => ({ ...d, text:e.target.value }))}
-        onKeyDown={e => { if (e.key === "Enter") apply(); }} />
-      <select style={s.filterSelect} value={draft.local}
-        onChange={e => setDraft(d => ({ ...d, local:e.target.value }))}>
+        value={fil.text}
+        onChange={e => setFil(f => ({ ...f, text:e.target.value }))} />
+      <select style={s.filterSelect} value={fil.local}
+        onChange={e => setFil(f => ({ ...f, local:e.target.value }))}>
         <option value="">Todos os locais</option>
-        <option>Almoxarifado</option>
-        <option>Segurança do Trabalho</option>
+        <option value="Almoxarifado">Almoxarifado</option>
+        <option value="Segurança do Trabalho">Segurança do Trabalho</option>
       </select>
-      <select style={s.filterSelect} value={draft.status}
-        onChange={e => setDraft(d => ({ ...d, status:e.target.value }))}>
+      <select style={s.filterSelect} value={fil.status}
+        onChange={e => setFil(f => ({ ...f, status:e.target.value }))}>
         <option value="">Todos os status</option>
         <option value="ok">✓ OK</option>
         <option value="baixo">⚠ Baixo</option>
       </select>
-      <button style={s.reloadBtn} onClick={apply}>🔍 Buscar</button>
-      {(fil.text || fil.local || fil.status || draft.text || draft.local || draft.status) && (
+      {(fil.text || fil.local || fil.status) && (
         <button style={s.clearBtn} onClick={clear}>✕ Limpar</button>
       )}
       {showReload && (
