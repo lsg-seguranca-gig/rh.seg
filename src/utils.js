@@ -49,9 +49,11 @@ export function isEmAlerta(epi, epis) {
 
 // ── Filtro de lista ───────────────────────────
 export function applyFilters(list, { text, local, status }, allEpis) {
+  const t = String(text || "").trim().toLowerCase();
   return list.filter(e => {
-    const t = text.toLowerCase();
-    const matchText   = !t || e.nome.toLowerCase().includes(t) || e.ca.toLowerCase().includes(t);
+    const nome = String(e.nome || "").toLowerCase();
+    const ca   = String(e.ca   || "").toLowerCase();
+    const matchText   = !t || nome.includes(t) || ca.includes(t);
     const matchLocal  = !local || e.local === local;
     const emAlerta    = isEmAlerta(e, allEpis);
     const matchStatus = !status
