@@ -11,6 +11,7 @@ import { LogoImg, LoginScreen, Field, FilterBar,
 
 const ADMIN_PASSWORD = "SegurancaLSG2026";
 const PROXY = "/api/gas";
+const BUILD_TAG = "2026-06-13-filterfix2";
 
 async function sheetRead(sheet) {
   const r = await fetch(`${PROXY}?sheet=${encodeURIComponent(sheet||"")}`, { method:"GET" });
@@ -302,10 +303,7 @@ export default function App() {
 
           {/* Título */}
           <div style={s.titleStrip}>
-            <div>
-              <h1 style={s.sysTitle}>Controle de EPIs</h1>
-              <p style={s.sysSub}>Olá, {usuario} · Gestão de Equipamentos de Proteção Individual</p>
-            </div>
+
             <div style={s.rightActions}>
               {alertaEpis.length > 0 && (
                 <button style={s.alertBadge} onClick={() => setTab("alertas")}>
