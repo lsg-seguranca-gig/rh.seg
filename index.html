@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Controle de EPIs — LSG Sky Chefs</title>
-    <link rel="icon" type="image/png" href="/icone lsg.ico" />
+    <link rel="icon" type="image/png" href="/logo_lsg.png" />
     <style>
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
       body { background: #f0f4f8; }
@@ -26,14 +26,12 @@
       }
       button { transition: transform 0.08s ease, box-shadow 0.15s ease, opacity 0.15s ease; }
       button:active { transform: scale(0.97); }
-      /* Tabela visível no desktop, cards no mobile */
+      /* Alterna entre tabela (desktop) e cards (mobile) via classes reais */
+      .epi-desktop-only { display: block; }
+      .epi-mobile-only  { display: none; }
       @media (max-width: 700px) {
-        [style*="desktopOnly"], .desktopOnly { display: none !important; }
-        [style*="mobileOnly"],  .mobileOnly  { display: block !important; }
-      }
-      @media (min-width: 701px) {
-        [style*="mobileOnly"],  .mobileOnly  { display: none !important; }
-        [style*="desktopOnly"], .desktopOnly { display: block !important; }
+        .epi-desktop-only { display: none !important; }
+        .epi-mobile-only  { display: block !important; }
       }
     </style>
   </head>
