@@ -359,11 +359,11 @@ export default function App() {
                   <button style={s.exportBtn} onClick={handleExportExcel}>📊 Exportar Excel</button>
                   <button style={s.exportBtn} onClick={handleExportPDF}>🧾 Exportar PDF</button>
                 </div>
-                <div style={s.desktopOnly}>
+                <div className="epi-desktop-only" style={s.desktopOnly}>
                   <TableEstoque epis={estFiltered} allEpis={epis} s={s} C={C}
                     onEdit={handleEdit} onDelete={setDeleteConfirm} />
                 </div>
-                <div style={s.mobileOnly}>
+                <div className="epi-mobile-only" style={s.mobileOnly}>
                   {estFiltered.map(epi => (
                     <CardEpi key={epiKey(epi.nome, epi.ca)} epi={epi} allEpis={epis}
                       s={s} C={C} onEdit={handleEdit} onDelete={setDeleteConfirm} />
@@ -436,11 +436,11 @@ export default function App() {
                 )}
 
                 <FilterBar fil={invFil} setFil={setInvFil} s={s} />
-                <div style={s.desktopOnly}>
+                <div className="epi-desktop-only" style={s.desktopOnly}>
                   <TableInventario epis={invFiltered} allEpis={epis} invDraft={invDraft}
                     s={s} C={C} onChange={handleInvChange} />
                 </div>
-                <div style={s.mobileOnly}>
+                <div className="epi-mobile-only" style={s.mobileOnly}>
                   {invFiltered.map(epi => (
                     <CardInventario key={epiKey(epi.nome, epi.ca)} epi={epi} allEpis={epis}
                       novaQtd={invDraft[epiKey(epi.nome, epi.ca)] ?? epi.quantidade}
