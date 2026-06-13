@@ -11,7 +11,7 @@ import { LogoImg, LoginScreen, Field, FilterBar,
 
 const ADMIN_PASSWORD = "SegurancaLSG2026";
 const PROXY = "/api/gas";
-const BUILD_TAG = "2026-06-13-filterfix2";
+const BUILD_TAG = "2026-06-13-filterfix3";
 
 async function sheetRead(sheet) {
   const r = await fetch(`${PROXY}?sheet=${encodeURIComponent(sheet||"")}`, { method:"GET" });
@@ -333,6 +333,9 @@ export default function App() {
                 onClick={() => {
                   setTab(t.key);
                   if (t.key !== "adicionar") { setForm(blankForm); setEditIdx(null); setFormErr({}); }
+                  // Reseta filtros ao trocar de aba para evitar estado cruzado
+                  if (t.key === "estoque")    setEstFil(BLANK_FILTER);
+                  if (t.key === "inventario") setInvFil(BLANK_FILTER);
                 }}>
                 {t.label}
               </button>
@@ -356,7 +359,7 @@ export default function App() {
             {/* ══ ESTOQUE ══ */}
             {tab === "estoque" && (
               <div style={s.tabContent}>
-                <FilterBar fil={estFil} setFil={setEstFil} s={s} onReload={loadSheet} showReload />
+                <FilterBar key="est-filter" fil={estFil} setFil={setEstFil} s={s} onReload={loadSheet} showReload />
                 <div style={{ ...s.exportRow, marginBottom:14 }}>
                   <button style={s.exportBtn} onClick={handleExportExcel}>📊 Exportar Excel</button>
                   <button style={s.exportBtn} onClick={handleExportPDF}>🧾 Exportar PDF</button>
@@ -437,7 +440,7 @@ export default function App() {
                   </div>
                 )}
 
-                <FilterBar fil={invFil} setFil={setInvFil} s={s} />
+                <FilterBar key="inv-filter" fil={invFil} setFil={setInvFil} s={s} />
                 <div className="epi-desktop-only" style={s.desktopOnly}>
                   <TableInventario epis={invFiltered} allEpis={epis} invDraft={invDraft}
                     s={s} C={C} onChange={handleInvChange} />
