@@ -11,7 +11,7 @@ import { LogoImg, LoginScreen, Field, FilterBar,
 
 const ADMIN_PASSWORD = "SegurancaLSG2026";
 const PROXY = "/api/gas";
-const BUILD_TAG = "2026-06-13-filterfix3";
+const BUILD_TAG = "2026-06-13-debug1";
 
 async function sheetRead(sheet) {
   const r = await fetch(`${PROXY}?sheet=${encodeURIComponent(sheet||"")}`, { method:"GET" });
@@ -360,6 +360,9 @@ export default function App() {
             {tab === "estoque" && (
               <div style={s.tabContent}>
                 <FilterBar key="est-filter" fil={estFil} setFil={setEstFil} s={s} onReload={loadSheet} showReload />
+                <p style={{ fontSize:11, color:C.accent, marginBottom:8, fontFamily:"monospace" }}>
+                  DEBUG estFil={JSON.stringify(estFil)} | estFiltered={estFiltered.length} de {epis.length}
+                </p>
                 <div style={{ ...s.exportRow, marginBottom:14 }}>
                   <button style={s.exportBtn} onClick={handleExportExcel}>📊 Exportar Excel</button>
                   <button style={s.exportBtn} onClick={handleExportPDF}>🧾 Exportar PDF</button>
