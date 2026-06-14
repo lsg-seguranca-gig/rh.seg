@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { epiKey, isEmAlerta, minimoCompartilhado, USUARIOS, groupEpisByName } from "./utils";
 
 // ── Logo com fallback ─────────────────────────
@@ -79,27 +79,48 @@ export function Field({ label, error, children, s }) {
 // Filtro reativo: qualquer alteração (texto, local ou status) aplica
 // imediatamente. O botão "Limpar" reseta tudo de uma vez.
 export function FilterBar({ fil, setFil, s, onReload, showReload }) {
-  const clear = () => setFil({ text:"", local:"", status:"" });
+  // Estado local (rascunho) — texto/local/status só são aplicados ao
+  // clicar em "Buscar" (ou Enter no campo de texto).
+  const [draft, setDraft] = useState(fil);
+
+  // Mantém o rascunho sincronizado quando o filtro é resetado de fora
+  // (ex: troca de aba ou botão Limpar de outro lugar).
+  useEffect(() => {
+    setDraft(fil);
+  }, [fil.text, fil.local, fil.status]);
+
+  const apply = () => setFil(draft);
+  const clear = () => {
+    const blank = { text:"", local:"", status:"" };
+    setDraft(blank);
+    setFil(blank);
+  };
+
+  const pendente = draft.text !== fil.text || draft.local !== fil.local || draft.status !== fil.status;
 
   return (
     <div style={s.filterBar}>
       <input style={{ ...s.searchBox, flex:2, minWidth:120 }}
         placeholder="🔍 Buscar por nome ou CA…"
-        value={fil.text}
-        onChange={e => setFil(f => ({ ...f, text:e.target.value }))} />
-      <select style={s.filterSelect} value={fil.local}
-        onChange={e => setFil(f => ({ ...f, local:e.target.value }))}>
+        value={draft.text}
+        onChange={e => setDraft(d => ({ ...d, text:e.target.value }))}
+        onKeyDown={e => { if (e.key === "Enter") apply(); }} />
+      <select style={s.filterSelect} value={draft.local}
+        onChange={e => setDraft(d => ({ ...d, local:e.target.value }))}>
         <option value="">Todos os locais</option>
         <option value="Almoxarifado">Almoxarifado</option>
         <option value="Segurança do Trabalho">Segurança do Trabalho</option>
       </select>
-      <select style={s.filterSelect} value={fil.status}
-        onChange={e => setFil(f => ({ ...f, status:e.target.value }))}>
+      <select style={s.filterSelect} value={draft.status}
+        onChange={e => setDraft(d => ({ ...d, status:e.target.value }))}>
         <option value="">Todos os status</option>
         <option value="ok">✓ OK</option>
         <option value="baixo">⚠ Baixo</option>
       </select>
-      {(fil.text || fil.local || fil.status) && (
+      <button style={{ ...s.reloadBtn, ...(pendente ? {} : { opacity:0.6 }) }} onClick={apply}>
+        🔍 Buscar
+      </button>
+      {(fil.text || fil.local || fil.status || draft.text || draft.local || draft.status) && (
         <button style={s.clearBtn} onClick={clear}>✕ Limpar</button>
       )}
       {showReload && (
