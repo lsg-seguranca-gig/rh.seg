@@ -11,7 +11,7 @@ import { LogoImg, LoginScreen, Field, FilterBar,
 
 const ADMIN_PASSWORD = "SegurancaLSG2026";
 const PROXY = "/api/gas";
-const BUILD_TAG = "2026-06-13-debug4-remount";
+const BUILD_TAG = "2026-06-13-filterfinal";
 
 async function sheetRead(sheet) {
   const r = await fetch(`${PROXY}?sheet=${encodeURIComponent(sheet||"")}`, { method:"GET" });
@@ -360,16 +360,6 @@ export default function App() {
             {tab === "estoque" && (
               <div style={s.tabContent}>
                 <FilterBar key="est-filter" fil={estFil} setFil={setEstFil} s={s} onReload={loadSheet} showReload />
-                <p style={{ fontSize:11, color:C.accent, marginBottom:8, fontFamily:"monospace", wordBreak:"break-all" }}>
-                  DEBUG estFil={JSON.stringify(estFil)} | estFiltered={estFiltered.length} de {epis.length}<br/>
-                  NOMES: {estFiltered.slice(0,5).map(e=>e.nome).join(" | ") || "(vazio)"}
-                </p>
-                <ul style={{ background:"#ffe", border:"3px solid orange", padding:12, marginBottom:14 }}>
-                  <li style={{fontWeight:700}}>LISTA BRUTA (sem CSS/CardEpi):</li>
-                  {estFiltered.map((epi,i) => (
-                    <li key={i}>{epi.nome} — {epi.local} — qtd:{epi.quantidade}</li>
-                  ))}
-                </ul>
                 <div style={{ ...s.exportRow, marginBottom:14 }}>
                   <button style={s.exportBtn} onClick={handleExportExcel}>📊 Exportar Excel</button>
                   <button style={s.exportBtn} onClick={handleExportPDF}>🧾 Exportar PDF</button>
@@ -451,11 +441,11 @@ export default function App() {
                 )}
 
                 <FilterBar key="inv-filter" fil={invFil} setFil={setInvFil} s={s} />
-                <div className="epi-desktop-only" style={s.desktopOnly}>
+                <div className="epi-desktop-only" style={s.desktopOnly} key={"desk-"+JSON.stringify(invFil)}>
                   <TableInventario epis={invFiltered} allEpis={epis} invDraft={invDraft}
                     s={s} C={C} onChange={handleInvChange} />
                 </div>
-                <div className="epi-mobile-only" style={s.mobileOnly}>
+                <div className="epi-mobile-only" style={s.mobileOnly} key={"mob-"+JSON.stringify(invFil)}>
                   {invFiltered.map(epi => (
                     <CardInventario key={epiKey(epi.nome, epi.ca)} epi={epi} allEpis={epis}
                       novaQtd={invDraft[epiKey(epi.nome, epi.ca)] ?? epi.quantidade}
