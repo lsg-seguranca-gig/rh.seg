@@ -42,8 +42,11 @@ export function minimoCompartilhado(nome, epis) {
 
 // ── Alerta individual ─────────────────────────
 export function isEmAlerta(epi, epis) {
+  // Se o MÍNIMO DESTA LINHA é 0 (item sem rotatividade nesse local),
+  // o status depende apenas da quantidade desta linha: baixo só se for 0.
+  if (epi.minimo === 0) return epi.quantidade === 0;
+  // Caso contrário, usa o mínimo compartilhado entre linhas do mesmo nome.
   const minimo = minimoCompartilhado(epi.nome, epis);
-  if (minimo === 0) return epi.quantidade === 0;
   return epi.quantidade <= minimo;
 }
 
@@ -81,8 +84,8 @@ export const BLANK_FILTER = { text:"", local:"", status:"" };
 // ─────────────────────────────────────────────────────────────────
 export const USUARIOS = [
   "Vitor Silva",
-  "Francinele Machado",
-  "Amanda Santos",
+  "Equipe Segurança do Trabalho",
+  "Almoxarifado",
 ];
 
 // ─────────────────────────────────────────────────────────────────
