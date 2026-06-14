@@ -11,7 +11,7 @@ import { LogoImg, LoginScreen, Field, FilterBar,
 
 const ADMIN_PASSWORD = "SegurancaLSG2026";
 const PROXY = "/api/gas";
-const BUILD_TAG = "2026-06-13-debug2";
+const BUILD_TAG = "2026-06-13-debug3";
 
 async function sheetRead(sheet) {
   const r = await fetch(`${PROXY}?sheet=${encodeURIComponent(sheet||"")}`, { method:"GET" });
@@ -364,6 +364,12 @@ export default function App() {
                   DEBUG estFil={JSON.stringify(estFil)} | estFiltered={estFiltered.length} de {epis.length}<br/>
                   NOMES: {estFiltered.slice(0,5).map(e=>e.nome).join(" | ") || "(vazio)"}
                 </p>
+                <ul style={{ background:"#ffe", border:"3px solid orange", padding:12, marginBottom:14 }}>
+                  <li style={{fontWeight:700}}>LISTA BRUTA (sem CSS/CardEpi):</li>
+                  {estFiltered.map((epi,i) => (
+                    <li key={i}>{epi.nome} — {epi.local} — qtd:{epi.quantidade}</li>
+                  ))}
+                </ul>
                 <div style={{ ...s.exportRow, marginBottom:14 }}>
                   <button style={s.exportBtn} onClick={handleExportExcel}>📊 Exportar Excel</button>
                   <button style={s.exportBtn} onClick={handleExportPDF}>🧾 Exportar PDF</button>
