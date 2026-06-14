@@ -11,7 +11,7 @@ import { LogoImg, LoginScreen, Field, FilterBar,
 
 const ADMIN_PASSWORD = "SegurancaLSG2026";
 const PROXY = "/api/gas";
-const BUILD_TAG = "2026-06-13-debug3";
+const BUILD_TAG = "2026-06-13-debug4-remount";
 
 async function sheetRead(sheet) {
   const r = await fetch(`${PROXY}?sheet=${encodeURIComponent(sheet||"")}`, { method:"GET" });
@@ -374,11 +374,11 @@ export default function App() {
                   <button style={s.exportBtn} onClick={handleExportExcel}>📊 Exportar Excel</button>
                   <button style={s.exportBtn} onClick={handleExportPDF}>🧾 Exportar PDF</button>
                 </div>
-                <div className="epi-desktop-only" style={s.desktopOnly}>
+                <div className="epi-desktop-only" style={s.desktopOnly} key={"desk-"+JSON.stringify(estFil)}>
                   <TableEstoque epis={estFiltered} allEpis={epis} s={s} C={C}
                     onEdit={handleEdit} onDelete={setDeleteConfirm} />
                 </div>
-                <div className="epi-mobile-only" style={s.mobileOnly}>
+                <div className="epi-mobile-only" style={s.mobileOnly} key={"mob-"+JSON.stringify(estFil)}>
                   {estFiltered.map(epi => (
                     <CardEpi key={epiKey(epi.nome, epi.ca)} epi={epi} allEpis={epis}
                       s={s} C={C} onEdit={handleEdit} onDelete={setDeleteConfirm} />
