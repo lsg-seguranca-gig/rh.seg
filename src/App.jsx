@@ -230,10 +230,33 @@ export default function App() {
         }));
         if (imported.length === 0) { setUploadError("Nenhum dado válido encontrado."); return; }
 
-        setEpis(imported);
-        const draft = {};
-        imported.forEach(e => { draft[epiKey(e.nome, e.ca)] = e.quantidade; });
-        setInvDraft(draft);
+        // Atualiza o rascunho do inventário com as quantidades e mínimos importados
+        // SEM substituir epis — assim "Qtd. Atual" mantém o valor anterior,
+        // "Nova Qtd." mostra o valor importado, e "Diferença" reflete a mudança.
+        // EPIs novos (não existentes) são adicionados à lista.
+        setEpis(prev => {
+          const merged = [...prev];
+          imported.forEach(imp => {
+            const idx = merged.findIndex(e => epiKey(e.nome, e.ca) === epiKey(imp.nome, imp.ca));
+            if (idx >= 0) {
+              // Atualiza mínimo mas mantém quantidade atual (será atualizada ao Salvar)
+              merged[idx] = { ...merged[idx], minimo: imp.minimo };
+            } else {
+              // EPI novo — adiciona com quantidade 0 (a nova qty vai estar no draft)
+              merged.push({ ...imp, quantidade: 0 });
+            }
+          });
+          return merged;
+        });
+
+        // Popula o rascunho com as novas quantidades da planilha importada
+        setInvDraft(prev => {
+          const draft = { ...prev };
+          imported.forEach(e => {
+            draft[epiKey(e.nome, e.ca)] = e.quantidade;
+          });
+          return draft;
+        });
         setInvDirty(true);
         setUploadPreview(imported);
         if (fileInputRef.current) fileInputRef.current.value = "";
@@ -439,11 +462,11 @@ export default function App() {
                 )}
 
                 <FilterBar key="inv-filter" fil={invFil} setFil={setInvFil} s={s} />
-                <div className="epi-desktop-only" style={s.desktopOnly} key={"desk-"+JSON.stringify(invFil)}>
+                <div className="epi-desktop-only" style={s.desktopOnly} key={"desk-"+JSON.stringify(invFil)+epis.length}>
                   <TableInventario epis={invFiltered} allEpis={epis} invDraft={invDraft}
                     s={s} C={C} onChange={handleInvChange} />
                 </div>
-                <div className="epi-mobile-only" style={s.mobileOnly} key={"mob-"+JSON.stringify(invFil)}>
+                <div className="epi-mobile-only" style={s.mobileOnly} key={"mob-"+JSON.stringify(invFil)+epis.length}>
                   {invFiltered.map(epi => (
                     <CardInventario key={epiKey(epi.nome, epi.ca)} epi={epi} allEpis={epis}
                       novaQtd={invDraft[epiKey(epi.nome, epi.ca)] ?? epi.quantidade}
