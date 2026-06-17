@@ -189,7 +189,14 @@ export default function App() {
   };
   const handleInvSave = () => {
     const oldEpis = epis;
-    const newEpis = epis.map(e => ({ ...e, quantidade: invDraft[epiKey(e.nome, e.ca)] ?? e.quantidade }));
+    // Aplica quantidades do draft e, se há upload pendente, também os mínimos importados
+    const newEpis = epis.map(e => {
+      const novaQtd = invDraft[epiKey(e.nome, e.ca)] ?? e.quantidade;
+      // Se existe um EPI correspondente no uploadPreview, usa o mínimo importado
+      const importado = uploadPreview?.find(i => epiKey(i.nome, i.ca) === epiKey(e.nome, e.ca));
+      const novoMinimo = importado ? importado.minimo : e.minimo;
+      return { ...e, quantidade: novaQtd, minimo: novoMinimo };
+    });
     setEpis(newEpis); saveSheet(newEpis); logHistorico(oldEpis, newEpis);
     setInvDirty(false); setUploadPreview(null); setUploadError("");
   };
@@ -230,33 +237,31 @@ export default function App() {
         }));
         if (imported.length === 0) { setUploadError("Nenhum dado válido encontrado."); return; }
 
-        // Atualiza o rascunho do inventário com as quantidades e mínimos importados
-        // SEM substituir epis — assim "Qtd. Atual" mantém o valor anterior,
-        // "Nova Qtd." mostra o valor importado, e "Diferença" reflete a mudança.
-        // EPIs novos (não existentes) são adicionados à lista.
-        setEpis(prev => {
-          const merged = [...prev];
-          imported.forEach(imp => {
-            const idx = merged.findIndex(e => epiKey(e.nome, e.ca) === epiKey(imp.nome, imp.ca));
-            if (idx >= 0) {
-              // Atualiza mínimo mas mantém quantidade atual (será atualizada ao Salvar)
-              merged[idx] = { ...merged[idx], minimo: imp.minimo };
-            } else {
-              // EPI novo — adiciona com quantidade 0 (a nova qty vai estar no draft)
-              merged.push({ ...imp, quantidade: 0 });
-            }
-          });
-          return merged;
+        // Substitui epis e invDraft completamente com os dados importados.
+        // "Qtd. Atual" = quantidade que está no Google Sheets (epis antes do save)
+        // "Nova Qtd."  = quantidade da planilha importada (invDraft)
+        // Para mostrar a diferença, mantemos epis com as quantidades atuais do GSheets
+        // e invDraft com as quantidades novas do arquivo.
+        const draftNovo = {};
+        imported.forEach(e => {
+          draftNovo[epiKey(e.nome, e.ca)] = e.quantidade;
         });
 
-        // Popula o rascunho com as novas quantidades da planilha importada
-        setInvDraft(prev => {
-          const draft = { ...prev };
-          imported.forEach(e => {
-            draft[epiKey(e.nome, e.ca)] = e.quantidade;
+        // Garante que todos os EPIs importados existam em epis (adiciona novos se necessário),
+        // mas mantém a quantidade atual dos EPIs existentes para mostrar a diferença.
+        setEpis(prev => {
+          const existentes = [...prev];
+          imported.forEach(imp => {
+            const existe = existentes.some(e => epiKey(e.nome, e.ca) === epiKey(imp.nome, imp.ca));
+            if (!existe) {
+              existentes.push({ ...imp, quantidade: 0 });
+            }
           });
-          return draft;
+          return existentes;
         });
+
+        // Substitui completamente o draft com os valores importados
+        setInvDraft(draftNovo);
         setInvDirty(true);
         setUploadPreview(imported);
         if (fileInputRef.current) fileInputRef.current.value = "";
@@ -462,11 +467,11 @@ export default function App() {
                 )}
 
                 <FilterBar key="inv-filter" fil={invFil} setFil={setInvFil} s={s} />
-                <div className="epi-desktop-only" style={s.desktopOnly} key={"desk-"+JSON.stringify(invFil)+epis.length}>
+                <div className="epi-desktop-only" style={s.desktopOnly} key={"desk-"+JSON.stringify(invFil)+Object.values(invDraft).join(",")}>
                   <TableInventario epis={invFiltered} allEpis={epis} invDraft={invDraft}
                     s={s} C={C} onChange={handleInvChange} />
                 </div>
-                <div className="epi-mobile-only" style={s.mobileOnly} key={"mob-"+JSON.stringify(invFil)+epis.length}>
+                <div className="epi-mobile-only" style={s.mobileOnly} key={"mob-"+JSON.stringify(invFil)+Object.values(invDraft).join(",")}>
                   {invFiltered.map(epi => (
                     <CardInventario key={epiKey(epi.nome, epi.ca)} epi={epi} allEpis={epis}
                       novaQtd={invDraft[epiKey(epi.nome, epi.ca)] ?? epi.quantidade}
