@@ -216,7 +216,7 @@ export function TableInventario({ epis, allEpis, invDraft, s, C, onChange }) {
           {epis.length === 0 && <tr><td colSpan={6} style={s.emptyCell}>Nenhum EPI encontrado.</td></tr>}
           {epis.map(epi => {
             const k        = epiKey(epi.nome, epi.ca);
-            const novaQtd  = invDraft[k] ?? epi.quantidade;
+            const novaQtd  = k in invDraft ? invDraft[k] : epi.quantidade;
             const diff     = novaQtd - epi.quantidade;
             const emAlerta = isEmAlerta({ ...epi, quantidade:novaQtd }, allEpis);
             return (
