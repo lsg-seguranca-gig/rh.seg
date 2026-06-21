@@ -61,6 +61,7 @@ export default function App() {
   const [invFil, setInvFil]               = useState(BLANK_FILTER);
   const [invDraft, setInvDraft]           = useState({});
   const [invDirty, setInvDirty]           = useState(false);
+  const [uploadVersion, setUploadVersion] = useState(0);
   const [uploadPreview, setUploadPreview] = useState(null);
   const [uploadError, setUploadError]     = useState("");
   const fileInputRef                      = useRef(null);
@@ -204,6 +205,7 @@ export default function App() {
     const draft = {};
     epis.forEach(e => { draft[epiKey(e.nome, e.ca)] = e.quantidade; });
     setInvDraft(draft); setInvDirty(false);
+    setUploadVersion(0);
     setUploadPreview(null); setUploadError("");
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
@@ -262,6 +264,7 @@ export default function App() {
 
         // Substitui completamente o draft com os valores importados
         setInvDraft(draftNovo);
+        setUploadVersion(v => v + 1);
         setInvDirty(true);
         setUploadPreview(imported);
         if (fileInputRef.current) fileInputRef.current.value = "";
@@ -467,11 +470,11 @@ export default function App() {
                 )}
 
                 <FilterBar key="inv-filter" fil={invFil} setFil={setInvFil} s={s} />
-                <div className="epi-desktop-only" style={s.desktopOnly} key={"desk-"+JSON.stringify(invFil)+Object.values(invDraft).join(",")}>
+                <div className="epi-desktop-only" style={s.desktopOnly} key={"desk-"+JSON.stringify(invFil)+"-v"+uploadVersion}>
                   <TableInventario epis={invFiltered} allEpis={epis} invDraft={invDraft}
                     s={s} C={C} onChange={handleInvChange} />
                 </div>
-                <div className="epi-mobile-only" style={s.mobileOnly} key={"mob-"+JSON.stringify(invFil)+Object.values(invDraft).join(",")}>
+                <div className="epi-mobile-only" style={s.mobileOnly} key={"mob-"+JSON.stringify(invFil)+"-v"+uploadVersion}>
                   {invFiltered.map(epi => (
                     <CardInventario key={epiKey(epi.nome, epi.ca)} epi={epi} allEpis={epis}
                       novaQtd={invDraft[epiKey(epi.nome, epi.ca)] ?? epi.quantidade}
