@@ -95,14 +95,14 @@ export default function App() {
       const loaded = rows.length <= 1 ? DEMO_EPIS : rowsToEpis(rows);
       setEpis(loaded);
       const draft = {};
-      loaded.forEach(e => { draft[epiKey(e.nome, e.ca)] = e.quantidade; });
+      loaded.forEach(e => { draft[epiKey(e.nome, e.ca, e.local)] = e.quantidade; });
       setInvDraft(draft); setInvDirty(false);
       if (rows.length <= 1) notify("Planilha vazia — exibindo dados de demonstração.", "info");
       else notify("Dados carregados da planilha.");
     } catch (err) {
       setEpis(DEMO_EPIS);
       const draft = {};
-      DEMO_EPIS.forEach(e => { draft[epiKey(e.nome, e.ca)] = e.quantidade; });
+      DEMO_EPIS.forEach(e => { draft[epiKey(e.nome, e.ca, e.local)] = e.quantidade; });
       setInvDraft(draft);
       notify("Não foi possível conectar: " + err.message, "error");
     } finally { setLoading(false); }
@@ -153,7 +153,7 @@ export default function App() {
     if (form.quantidade < 0) err.quantidade = "Quantidade inválida";
     if (form.minimo < 0)     err.minimo     = "Mínimo inválido";
     const dup = epis.find((e, i) =>
-      epiKey(e.nome, e.ca) === epiKey(form.nome, form.ca) && i !== editIdx
+      epiKey(e.nome, e.ca, e.local) === epiKey(form.nome, form.ca, form.local) && i !== editIdx
     );
     if (dup) err.ca = "Já existe um EPI com este nome e CA";
     setFormErr(err);
@@ -168,7 +168,7 @@ export default function App() {
       : [...epis, { ...form }];
     setEpis(newEpis); saveSheet(newEpis); logHistorico(oldEpis, newEpis);
     const draft = {};
-    newEpis.forEach(e => { draft[epiKey(e.nome, e.ca)] = e.quantidade; });
+    newEpis.forEach(e => { draft[epiKey(e.nome, e.ca, e.local)] = e.quantidade; });
     setInvDraft(draft); setInvDirty(false);
     setForm(blankForm); setEditIdx(null); setTab("estoque");
   };
@@ -179,21 +179,21 @@ export default function App() {
     const newEpis = epis.filter((_, i) => i !== idx);
     setEpis(newEpis); saveSheet(newEpis); logHistorico(oldEpis, newEpis);
     const draft = {};
-    newEpis.forEach(e => { draft[epiKey(e.nome, e.ca)] = e.quantidade; });
+    newEpis.forEach(e => { draft[epiKey(e.nome, e.ca, e.local)] = e.quantidade; });
     setInvDraft(draft); setDeleteConfirm(null);
   };
 
   // ── Inventário ─────────────────────────────
-  const handleInvChange = (nome, ca, val) => {
-    setInvDraft(d => ({ ...d, [epiKey(nome, ca)]: Math.max(0, parseInt(val, 10) || 0) }));
+  const handleInvChange = (nome, ca, local, val) => {
+    setInvDraft(d => ({ ...d, [epiKey(nome, ca, local)]: Math.max(0, parseInt(val, 10) || 0) }));
     setInvDirty(true);
   };
   const handleInvSave = () => {
     const oldEpis = epis;
     const newEpis = epis.map(e => {
-      const k = epiKey(e.nome, e.ca);
+      const k = epiKey(e.nome, e.ca, e.local);
       const novaQtd = k in invDraft ? invDraft[k] : e.quantidade;
-      const importado = uploadPreview?.find(i => epiKey(i.nome, i.ca) === k);
+      const importado = uploadPreview?.find(i => epiKey(i.nome, i.ca, i.local) === k);
       const novoMinimo = importado ? importado.minimo : e.minimo;
       return { ...e, quantidade: novaQtd, minimo: novoMinimo };
     });
@@ -202,7 +202,7 @@ export default function App() {
   };
   const handleInvCancel = () => {
     const draft = {};
-    epis.forEach(e => { draft[epiKey(e.nome, e.ca)] = e.quantidade; });
+    epis.forEach(e => { draft[epiKey(e.nome, e.ca, e.local)] = e.quantidade; });
     setInvDraft(draft); setInvDirty(false);
     setUploadVersion(0);
     setUploadPreview(null); setUploadError("");
@@ -242,39 +242,18 @@ export default function App() {
         }));
         if (imported.length === 0) { setUploadError("Nenhum dado válido encontrado."); return; }
 
-        // DEBUG TEMPORÁRIO — mostra os 2 primeiros itens importados
-        const d0 = imported[0];
-        const d1 = imported[1] || {};
-        alert(
-          "DEBUG IMPORTAÇÃO\n\n" +
-          `[0] nome="${d0.nome}" | ca="${d0.ca}" | local="${d0.local}" | qtd=${d0.quantidade}\n` +
-          `[0] key="${epiKey(d0.nome, d0.ca)}"\n\n` +
-          `[1] nome="${d1.nome}" | ca="${d1.ca}" | local="${d1.local}" | qtd=${d1.quantidade}\n` +
-          `[1] key="${epiKey(d1.nome || "", d1.ca || "")}"`
-        );
-
         // Gera o draft com as quantidades importadas usando as mesmas chaves dos EPIs importados
         const draftNovo = {};
         imported.forEach(e => {
-          draftNovo[epiKey(e.nome, e.ca)] = e.quantidade;
+          draftNovo[epiKey(e.nome, e.ca, e.local)] = e.quantidade;
         });
-
-        // DEBUG — mostra o draftNovo e a chave do primeiro EPI do sistema
-        const primeiraChaveDraft = Object.keys(draftNovo)[0];
-        const primeiroValorDraft = draftNovo[primeiraChaveDraft];
-        alert(
-          "DEBUG DRAFTNOVO\n\n" +
-          `Primeira chave: "${primeiraChaveDraft}"\n` +
-          `Valor: ${primeiroValorDraft}\n\n` +
-          `Total de chaves no draft: ${Object.keys(draftNovo).length}`
-        );
 
         // Substitui epis pelos importados (com quantidade = valor do GSheets para mostrar diferença)
         // Para isso, precisamos dos epis atuais para comparação — guardamos as qtds atuais
         setEpis(prevEpis => {
           return imported.map(imp => {
             // Tenta encontrar o EPI equivalente nos dados atuais para preservar a Qtd. Atual
-            const atual = prevEpis.find(e => epiKey(e.nome, e.ca) === epiKey(imp.nome, imp.ca));
+            const atual = prevEpis.find(e => epiKey(e.nome, e.ca, e.local) === epiKey(imp.nome, imp.ca, imp.local));
             return {
               ...imp,
               // quantidade = Qtd. Atual (do GSheets) para mostrar a diferença
@@ -420,7 +399,7 @@ export default function App() {
                 </div>
                 <div className="epi-mobile-only" style={s.mobileOnly} key={"mob-"+JSON.stringify(estFil)}>
                   {estFiltered.map(epi => (
-                    <CardEpi key={epiKey(epi.nome, epi.ca)} epi={epi} allEpis={epis}
+                    <CardEpi key={epiKey(epi.nome, epi.ca, epi.local)} epi={epi} allEpis={epis}
                       s={s} C={C} onEdit={handleEdit} onDelete={setDeleteConfirm} />
                   ))}
                   {estFiltered.length === 0 && <p style={s.emptyMobile}>Nenhum EPI encontrado.</p>}
@@ -502,7 +481,7 @@ export default function App() {
                 </div>
                 <div className="epi-mobile-only" style={s.mobileOnly}>
                   {invFiltered.map(epi => {
-                    const k = epiKey(epi.nome, epi.ca);
+                    const k = epiKey(epi.nome, epi.ca, epi.local);
                     const novaQtd = k in invDraft ? invDraft[k] : epi.quantidade;
                     return (
                       <CardInventario
@@ -604,7 +583,7 @@ export default function App() {
                       {alertaEpis.map(epi => {
                         const minComp = minimoCompartilhado(epi.nome, epis);
                         return (
-                          <div key={epiKey(epi.nome, epi.ca)} style={s.alertCard}>
+                          <div key={epiKey(epi.nome, epi.ca, epi.local)} style={s.alertCard}>
                             <div style={s.alertCardTop}>
                               <span style={{ fontSize:28 }}>⚠️</span>
                               <div style={{ flex:1 }}>
