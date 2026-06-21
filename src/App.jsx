@@ -242,11 +242,32 @@ export default function App() {
         }));
         if (imported.length === 0) { setUploadError("Nenhum dado válido encontrado."); return; }
 
+        // DEBUG TEMPORÁRIO — mostra os 2 primeiros itens importados
+        const d0 = imported[0];
+        const d1 = imported[1] || {};
+        alert(
+          "DEBUG IMPORTAÇÃO\n\n" +
+          `[0] nome="${d0.nome}" | ca="${d0.ca}" | local="${d0.local}" | qtd=${d0.quantidade}\n` +
+          `[0] key="${epiKey(d0.nome, d0.ca)}"\n\n` +
+          `[1] nome="${d1.nome}" | ca="${d1.ca}" | local="${d1.local}" | qtd=${d1.quantidade}\n` +
+          `[1] key="${epiKey(d1.nome || "", d1.ca || "")}"`
+        );
+
         // Gera o draft com as quantidades importadas usando as mesmas chaves dos EPIs importados
         const draftNovo = {};
         imported.forEach(e => {
           draftNovo[epiKey(e.nome, e.ca)] = e.quantidade;
         });
+
+        // DEBUG — mostra o draftNovo e a chave do primeiro EPI do sistema
+        const primeiraChaveDraft = Object.keys(draftNovo)[0];
+        const primeiroValorDraft = draftNovo[primeiraChaveDraft];
+        alert(
+          "DEBUG DRAFTNOVO\n\n" +
+          `Primeira chave: "${primeiraChaveDraft}"\n` +
+          `Valor: ${primeiroValorDraft}\n\n` +
+          `Total de chaves no draft: ${Object.keys(draftNovo).length}`
+        );
 
         // Substitui epis pelos importados (com quantidade = valor do GSheets para mostrar diferença)
         // Para isso, precisamos dos epis atuais para comparação — guardamos as qtds atuais
