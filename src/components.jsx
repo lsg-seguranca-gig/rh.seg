@@ -144,9 +144,9 @@ export function TableEstoque({ epis, allEpis, s, C, onEdit, onDelete }) {
           {epis.length === 0 && <tr><td colSpan={6} style={s.emptyCell}>Nenhum EPI encontrado.</td></tr>}
           {epis.map(epi => {
             const emAlerta = isEmAlerta(epi, allEpis);
-            const realIdx  = allEpis.findIndex(e => epiKey(e.nome,e.ca) === epiKey(epi.nome,epi.ca));
+            const realIdx  = allEpis.findIndex(e => epiKey(e.nome,e.ca,e.local) === epiKey(epi.nome,epi.ca,epi.local));
             return (
-              <tr key={epiKey(epi.nome,epi.ca)} style={{ ...s.tr, ...(emAlerta ? s.trAlert : {}) }}>
+              <tr key={epiKey(epi.nome,epi.ca,epi.local)} style={{ ...s.tr, ...(emAlerta ? s.trAlert : {}) }}>
                 <td style={{ ...s.td, fontWeight:600 }}>{epi.nome}</td>
                 <td style={s.td}>
                   <span style={{ ...s.localBadge, ...(epi.local==="Segurança do Trabalho" ? s.localST : s.localAlmox) }}>
@@ -178,7 +178,7 @@ export function TableEstoque({ epis, allEpis, s, C, onEdit, onDelete }) {
 // ── Card Estoque (mobile) ─────────────────────
 export function CardEpi({ epi, allEpis, s, C, onEdit, onDelete }) {
   const emAlerta = isEmAlerta(epi, allEpis);
-  const realIdx  = allEpis.findIndex(e => epiKey(e.nome,e.ca) === epiKey(epi.nome,epi.ca));
+  const realIdx  = allEpis.findIndex(e => epiKey(e.nome,e.ca,e.local) === epiKey(epi.nome,epi.ca,epi.local));
   return (
     <div style={{ ...s.mobileCard, ...(emAlerta ? { borderColor:C.alertBorder, background:C.alertBg } : {}) }}>
       <div style={s.mobileCardHeader}>
@@ -215,7 +215,7 @@ export function TableInventario({ epis, allEpis, invDraft, s, C, onChange }) {
         <tbody>
           {epis.length === 0 && <tr><td colSpan={6} style={s.emptyCell}>Nenhum EPI encontrado.</td></tr>}
           {epis.map(epi => {
-            const k        = epiKey(epi.nome, epi.ca);
+            const k        = epiKey(epi.nome, epi.ca, epi.local);
             const novaQtd  = k in invDraft ? invDraft[k] : epi.quantidade;
             const diff     = novaQtd - epi.quantidade;
             const emAlerta = isEmAlerta({ ...epi, quantidade:novaQtd }, allEpis);
@@ -230,10 +230,10 @@ export function TableInventario({ epis, allEpis, invDraft, s, C, onChange }) {
                 <td style={{ ...s.td, textAlign:"center", color:C.textSub }}>{epi.quantidade}</td>
                 <td style={s.td}>
                   <div style={s.qtyRow}>
-                    <button style={s.qtyBtn} onClick={() => onChange(epi.nome, epi.ca, novaQtd-1)}>−</button>
+                    <button style={s.qtyBtn} onClick={() => onChange(epi.nome, epi.ca, epi.local, novaQtd-1)}>−</button>
                     <input style={s.qtyInput} type="number" min="0" value={novaQtd}
-                      onChange={e => onChange(epi.nome, epi.ca, e.target.value)} />
-                    <button style={s.qtyBtn} onClick={() => onChange(epi.nome, epi.ca, novaQtd+1)}>+</button>
+                      onChange={e => onChange(epi.nome, epi.ca, epi.local, e.target.value)} />
+                    <button style={s.qtyBtn} onClick={() => onChange(epi.nome, epi.ca, epi.local, novaQtd+1)}>+</button>
                   </div>
                 </td>
                 <td style={{ ...s.td, textAlign:"center", fontWeight:700,
@@ -270,10 +270,10 @@ export function CardInventario({ epi, allEpis, novaQtd, s, C, onChange }) {
       <div style={s.mobileCardRow}>
         <span style={s.mobileLabel}>Nova Qtd.</span>
         <div style={s.qtyRow}>
-          <button style={s.qtyBtn} onClick={() => onChange(epi.nome, epi.ca, novaQtd-1)}>−</button>
+          <button style={s.qtyBtn} onClick={() => onChange(epi.nome, epi.ca, epi.local, novaQtd-1)}>−</button>
           <input style={s.qtyInput} type="number" min="0" value={novaQtd}
-            onChange={e => onChange(epi.nome, epi.ca, e.target.value)} />
-          <button style={s.qtyBtn} onClick={() => onChange(epi.nome, epi.ca, novaQtd+1)}>+</button>
+            onChange={e => onChange(epi.nome, epi.ca, epi.local, e.target.value)} />
+          <button style={s.qtyBtn} onClick={() => onChange(epi.nome, epi.ca, epi.local, novaQtd+1)}>+</button>
         </div>
       </div>
       <div style={s.mobileCardRow}>
@@ -382,7 +382,7 @@ export function DashboardTab({ epis, dashboard, s, C, onGoToAlertas }) {
             </div>
           ) : (
             criticos.map(epi => (
-              <div key={epiKey(epi.nome, epi.ca)} style={s.criticoItem}>
+              <div key={epiKey(epi.nome, epi.ca, epi.local)} style={s.criticoItem}>
                 <div>
                   <div style={s.criticoNome}>{epi.nome}</div>
                   <div style={s.criticoCa}>CA: {epi.ca || "—"} · {epi.local}</div>
@@ -471,9 +471,9 @@ export function CadastroTab({ grupos, allEpis, s, C, onEdit, onDelete }) {
                       <tbody>
                         {grupo.linhas.map(epi => {
                           const emAlerta = isEmAlerta(epi, allEpis);
-                          const realIdx  = allEpis.findIndex(e => epiKey(e.nome,e.ca) === epiKey(epi.nome,epi.ca));
+                          const realIdx  = allEpis.findIndex(e => epiKey(e.nome,e.ca,e.local) === epiKey(epi.nome,epi.ca,epi.local));
                           return (
-                            <tr key={epiKey(epi.nome,epi.ca)} style={{ ...s.tr, ...(emAlerta ? s.trAlert : {}) }}>
+                            <tr key={epiKey(epi.nome,epi.ca,epi.local)} style={{ ...s.tr, ...(emAlerta ? s.trAlert : {}) }}>
                               <td style={s.td}><span style={s.caBadge}>{epi.ca || "—"}</span></td>
                               <td style={s.td}>
                                 <span style={{ ...s.localBadge, ...(epi.local==="Segurança do Trabalho" ? s.localST : s.localAlmox) }}>
