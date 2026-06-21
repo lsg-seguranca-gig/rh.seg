@@ -190,11 +190,10 @@ export default function App() {
   };
   const handleInvSave = () => {
     const oldEpis = epis;
-    // Aplica quantidades do draft e, se há upload pendente, também os mínimos importados
     const newEpis = epis.map(e => {
-      const novaQtd = invDraft[epiKey(e.nome, e.ca)] ?? e.quantidade;
-      // Se existe um EPI correspondente no uploadPreview, usa o mínimo importado
-      const importado = uploadPreview?.find(i => epiKey(i.nome, i.ca) === epiKey(e.nome, e.ca));
+      const k = epiKey(e.nome, e.ca);
+      const novaQtd = k in invDraft ? invDraft[k] : e.quantidade;
+      const importado = uploadPreview?.find(i => epiKey(i.nome, i.ca) === k);
       const novoMinimo = importado ? importado.minimo : e.minimo;
       return { ...e, quantidade: novaQtd, minimo: novoMinimo };
     });
@@ -239,30 +238,27 @@ export default function App() {
         }));
         if (imported.length === 0) { setUploadError("Nenhum dado válido encontrado."); return; }
 
-        // Substitui epis e invDraft completamente com os dados importados.
-        // "Qtd. Atual" = quantidade que está no Google Sheets (epis antes do save)
-        // "Nova Qtd."  = quantidade da planilha importada (invDraft)
-        // Para mostrar a diferença, mantemos epis com as quantidades atuais do GSheets
-        // e invDraft com as quantidades novas do arquivo.
+        // Gera o draft com as quantidades importadas usando as mesmas chaves dos EPIs importados
         const draftNovo = {};
         imported.forEach(e => {
           draftNovo[epiKey(e.nome, e.ca)] = e.quantidade;
         });
 
-        // Garante que todos os EPIs importados existam em epis (adiciona novos se necessário),
-        // mas mantém a quantidade atual dos EPIs existentes para mostrar a diferença.
-        setEpis(prev => {
-          const existentes = [...prev];
-          imported.forEach(imp => {
-            const existe = existentes.some(e => epiKey(e.nome, e.ca) === epiKey(imp.nome, imp.ca));
-            if (!existe) {
-              existentes.push({ ...imp, quantidade: 0 });
-            }
+        // Substitui epis pelos importados (com quantidade = valor do GSheets para mostrar diferença)
+        // Para isso, precisamos dos epis atuais para comparação — guardamos as qtds atuais
+        setEpis(prevEpis => {
+          return imported.map(imp => {
+            // Tenta encontrar o EPI equivalente nos dados atuais para preservar a Qtd. Atual
+            const atual = prevEpis.find(e => epiKey(e.nome, e.ca) === epiKey(imp.nome, imp.ca));
+            return {
+              ...imp,
+              // quantidade = Qtd. Atual (do GSheets) para mostrar a diferença
+              quantidade: atual ? atual.quantidade : 0,
+            };
           });
-          return existentes;
         });
 
-        // Substitui completamente o draft com os valores importados
+        // Aplica o draft com os valores novos (da planilha importada)
         setInvDraft(draftNovo);
         setUploadVersion(v => v + 1);
         setInvDirty(true);
