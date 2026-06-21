@@ -1,6 +1,7 @@
-// ── Chave única por EPI ───────────────────────
-export function epiKey(nome, ca) {
-  return `${String(nome).trim().toLowerCase()}||${String(ca).trim()}`;
+// Chave única por EPI: nome+CA+local (normalizado)
+// Inclui local porque pode haver o mesmo EPI (mesmo nome e CA) em locais diferentes.
+export function epiKey(nome, ca, local) {
+  return `${String(nome).trim().toLowerCase()}||${String(ca).trim()}||${String(local || "").trim().toLowerCase()}`;
 }
 
 // ── Normaliza valores de "Local" vindos da planilha ───
@@ -113,7 +114,7 @@ export function buildHistoricoEntries(oldEpis, newEpis, usuario) {
   const dataStr = agora.toLocaleString("pt-BR", { dateStyle:"short", timeStyle:"medium" });
   const entries = [];
   newEpis.forEach(novo => {
-    const antigo = oldEpis.find(e => epiKey(e.nome,e.ca) === epiKey(novo.nome,novo.ca));
+    const antigo = oldEpis.find(e => epiKey(e.nome, e.ca, e.local) === epiKey(novo.nome, novo.ca, novo.local));
     const qtdAnterior = antigo ? antigo.quantidade : 0;
     const diff = novo.quantidade - qtdAnterior;
     if (diff !== 0) {
