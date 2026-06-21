@@ -15,10 +15,12 @@ export function normalizeLocal(raw) {
 }
 
 // ── Planilha → EPIs ───────────────────────────
+const stripInvisible = (s) => String(s || "").replace(/^\uFEFF/, "").replace(/[\u200B-\u200D\uFEFF]/g, "").trim();
+
 export function rowsToEpis(rows) {
   return rows.slice(1).filter(r => r[0]).map(r => ({
-    nome:       String(r[0]||"").trim(),
-    ca:         String(r[1]||"").trim(),
+    nome:       stripInvisible(r[0]),
+    ca:         stripInvisible(r[1]),
     local:      normalizeLocal(r[2]),
     quantidade: parseInt(r[3], 10) || 0,
     minimo:     parseInt(r[4], 10) || 0,
