@@ -470,16 +470,29 @@ export default function App() {
                 )}
 
                 <FilterBar key="inv-filter" fil={invFil} setFil={setInvFil} s={s} />
-                <div className="epi-desktop-only" style={s.desktopOnly} key={"desk-"+JSON.stringify(invFil)+"-v"+uploadVersion}>
-                  <TableInventario epis={invFiltered} allEpis={epis} invDraft={invDraft}
-                    s={s} C={C} onChange={handleInvChange} />
+                <div className="epi-desktop-only" style={s.desktopOnly}>
+                  <TableInventario
+                    key={"tbl-v"+uploadVersion}
+                    epis={invFiltered}
+                    allEpis={epis}
+                    invDraft={invDraft}
+                    s={s} C={C}
+                    onChange={handleInvChange} />
                 </div>
-                <div className="epi-mobile-only" style={s.mobileOnly} key={"mob-"+JSON.stringify(invFil)+"-v"+uploadVersion}>
-                  {invFiltered.map(epi => (
-                    <CardInventario key={epiKey(epi.nome, epi.ca)} epi={epi} allEpis={epis}
-                      novaQtd={invDraft[epiKey(epi.nome, epi.ca)] ?? epi.quantidade}
-                      s={s} C={C} onChange={handleInvChange} />
-                  ))}
+                <div className="epi-mobile-only" style={s.mobileOnly}>
+                  {invFiltered.map(epi => {
+                    const k = epiKey(epi.nome, epi.ca);
+                    const novaQtd = k in invDraft ? invDraft[k] : epi.quantidade;
+                    return (
+                      <CardInventario
+                        key={k + "-" + novaQtd}
+                        epi={epi}
+                        allEpis={epis}
+                        novaQtd={novaQtd}
+                        s={s} C={C}
+                        onChange={handleInvChange} />
+                    );
+                  })}
                   {invFiltered.length === 0 && <p style={s.emptyMobile}>Nenhum EPI encontrado.</p>}
                 </div>
                 <p style={s.countNote}>{invFiltered.length} de {epis.length} linhas exibidas</p>
