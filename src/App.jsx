@@ -229,9 +229,13 @@ export default function App() {
           setUploadError("Cabeçalho inválido. Coluna A deve ser 'Nome do EPI'."); return;
         }
 
+        // Remove BOM e caracteres invisíveis que o Excel pode adicionar,
+        // especialmente no primeiro campo da primeira linha de dados.
+        const stripInvisible = (s) => String(s || "").replace(/^\uFEFF/, "").replace(/[\u200B-\u200D\uFEFF]/g, "").trim();
+
         const imported = rows.slice(1).filter(r => r[offset]).map(r => ({
-          nome:       String(r[offset]     || "").trim(),
-          ca:         String(r[offset + 1] || "").trim(),
+          nome:       stripInvisible(r[offset]),
+          ca:         stripInvisible(r[offset + 1]),
           local:      normalizeLocal(r[offset + 2]),
           quantidade: parseInt(r[offset + 3], 10) || 0,
           minimo:     parseInt(r[offset + 4], 10) || 0,
@@ -471,7 +475,7 @@ export default function App() {
                     key={"tbl-v"+uploadVersion}
                     epis={invFiltered}
                     allEpis={epis}
-                    invDraft={invDraft}
+                    invDraft={{...invDraft}}
                     s={s} C={C}
                     onChange={handleInvChange} />
                 </div>
@@ -481,7 +485,7 @@ export default function App() {
                     const novaQtd = k in invDraft ? invDraft[k] : epi.quantidade;
                     return (
                       <CardInventario
-                        key={k + "-" + novaQtd}
+                        key={k + "-v" + uploadVersion}
                         epi={epi}
                         allEpis={epis}
                         novaQtd={novaQtd}
